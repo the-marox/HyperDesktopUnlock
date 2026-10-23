@@ -30,6 +30,7 @@ public class MainHook implements IXposedHookLoadPackage {
                 SettingsTraceHooks.hook(lpparam, "system_server");
                 MirrorPolicyHooks.hook(lpparam);
                 WmHooks.hook(lpparam);
+                AltTabHooks.hook(lpparam);
                 break;
             case "com.android.systemui":
                 DesktopModeHooks.hook(lpparam, "systemui");

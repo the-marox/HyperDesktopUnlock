@@ -54,6 +54,7 @@ places. The module hooks each one (see `app/src/main/java/.../`):
 | `LauncherHooks` | SystemUI | HyperOS Home is single-display, so the monitor stays empty | When the Desktop choice is applied (`applyConnectionChoice(enableMirroring=false)`, dialog or *Don't ask again*), launches a launcher on the external display via `ActivityOptions.setLaunchDisplayId`. Default package: `cu.axel.smartdock` (SmartDock); change `LAUNCHER_PACKAGE` for Taskbar etc. |
 | `PhoneScreen` (+ `ExternalDisplayGate`) | system_server | Pressing power puts the whole device to sleep, monitor included | ~2 s after an external **physical** display becomes a desktop display, turns off only the phone's panel (`SurfaceControl.setDisplayPowerMode(internalToken, OFF)`, same technique as scrcpy `--turn-screen-off`); waits for unlock if the phone is locked; turns it back on when the cable is unplugged. Once per connection: lock + wake the phone to get its screen back. Virtual displays (screen recording, cast) are ignored. Toggle: `PhoneScreen.TURN_OFF_ON_DESKTOP` |
 | `DockAccessibility` | system_server | Enabled accessibility services always start at boot, so the dock would also show up on the phone | Enables the dock's accessibility service (found dynamically in `LAUNCHER_PACKAGE`, e.g. SmartDock `DockService`) when the desktop starts, disables it when the cable is unplugged, and after boot if no monitor is attached. Also re-enables it if HyperOS turned it off. Toggle: `DockAccessibility.MANAGE` |
+| `AltTabHooks` | system_server | Alt+Tab is handled by the HyperOS launcher, which lives only on the phone: on the monitor it does nothing | Intercepts Alt+Tab at `InputManagerService.interceptKeyBeforeQueueing` **only** while a desktop display is active and has focus. Alt+Tab switches to the previous app on the monitor; keep Alt held and press Tab again to go further back; Alt+Shift+Tab goes the other way. No preview overlay. On the phone, Alt+Tab is untouched. Toggle: `AltTabHooks.ENABLED` |
 | `SettingsHooks` | Settings | The hidden AOSP *External displays* page crashes in `DisplayTopologyPreferenceController` (lateinit `paneContent` never set by the miuix adapter) | Marks that controller unavailable so the page renders |
 
 Optional, off by default:
@@ -99,7 +100,9 @@ All logs go through `XposedBridge.log` with the prefix `HyperDesktop:` —
 4. The phone's own screen turns off automatically a couple of seconds later (1.2.0+); the phone stays awake
    and can be used as a touchpad by dock apps that support it. Need the phone screen? Press power twice
    (lock + wake): it comes back and stays on until the next connection.
-5. **Back** on the monitor: mouse side button, `Esc` on a keyboard, the
+5. **Alt+Tab** on a physical keyboard switches between the apps open on the monitor (1.3.0+): hold Alt and
+   press Tab repeatedly to go further back, Alt+Shift+Tab to go the other way.
+6. **Back** on the monitor: mouse side button, `Esc` on a keyboard, the
    launcher's Back button, or `input -d 2 keyevent KEYCODE_BACK`.
 
 To go back to mirroring just pick *Mirroring* in the dialog (or clear the
