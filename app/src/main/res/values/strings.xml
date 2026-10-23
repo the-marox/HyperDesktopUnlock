@@ -9,4 +9,35 @@
         <item>com.android.systemui</item>
         <item>com.android.settings</item>
     </string-array>
+
+    <!-- Impostazioni -->
+    <string name="status_active">Changes take effect right away. A reboot is only needed after installing or updating the module.</string>
+    <string name="status_unavailable">⚠ LSPosed did not provide a place to store the settings. Reboot and open this screen again.</string>
+    <string name="status_inactive">⚠ The module is not active in LSPosed, so these settings can\'t reach the system. Enable it in LSPosed (scope: System Framework, System UI, Settings), reboot, then open this screen again.</string>
+
+    <string name="section_dock">Dock</string>
+    <string name="auto_launch_title">Start the dock on the monitor</string>
+    <string name="auto_launch_summary">Opens the dock\'s desktop on the monitor when you choose Computer.</string>
+    <string name="launcher_pkg_title">Dock app (package name)</string>
+    <string name="launcher_pkg_summary">SmartDock: cu.axel.smartdock · Taskbar: com.farmerbb.taskbar</string>
+    <string name="manage_a11y_title">Manage the dock\'s accessibility service</string>
+    <string name="manage_a11y_summary">Turns it on when the desktop starts and off when you unplug, so the dock never shows up on the phone.</string>
+
+    <string name="section_phone">Phone</string>
+    <string name="phone_off_title">Turn off the phone screen in desktop mode</string>
+    <string name="phone_off_summary">The phone stays awake. Press power twice, or Win+P, to get its screen back.</string>
+    <string name="keep_awake_title">Keep the monitor on</string>
+    <string name="keep_awake_summary">Ignores the screen timeout in desktop mode. Turn this on if the monitor goes dark while you aren\'t using the mouse or keyboard. The power button still works.</string>
+
+    <string name="section_monitor">Monitor</string>
+    <string name="density_title">Monitor density (dpi)</string>
+    <string name="density_summary">Higher = bigger. 4K monitors usually look right between 240 and 360. 0 = the monitor\'s default; leave empty to never change it.</string>
+    <string name="density_apply">Apply</string>
+    <string name="density_invalid">Enter 0 or a value between 100 and 800</string>
+    <string name="density_cleared">Done: the module won\'t change the monitor density any more.</string>
+    <string name="density_saved">Saved. Applied now if the monitor is connected, otherwise on the next connection.</string>
+
+    <string name="section_keyboard">Keyboard</string>
+    <string name="shortcuts_title">Desktop keyboard shortcuts</string>
+    <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — switch apps on the monitor\nPrint Screen · Win+Shift+S — screenshot of the monitor\nWin+Shift+Arrow — move an app between monitor and phone\nAlt+F4 — close the app on the monitor\nWin+D — show the dock\'s desktop\nWin+P — phone screen on/off</string>
 </resources>

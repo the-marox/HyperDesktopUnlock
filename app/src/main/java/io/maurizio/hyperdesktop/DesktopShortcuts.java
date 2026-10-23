@@ -7,6 +7,7 @@ package io.maurizio.hyperdesktop;
 
 import android.app.ActivityOptions;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.hardware.display.DisplayManager;
 import android.net.Uri;
@@ -36,24 +37,29 @@ import de.robv.android.xposed.XposedHelpers;
  *                         (sul telefono resta lo screenshot di HyperOS)
  *   Win+Shift+frecce      sposta l'app in primo piano monitor <-> telefono
  *   Alt+F4                chiude l'app in primo piano sul monitor
+ *   Win+D                 mostra il desktop del dock sul monitor
  *   Win+P                 accende/spegne lo schermo del telefono
  *
+ * Si disattivano tutte (con Alt+Tab) dalle impostazioni (Prefs.shortcuts).
  * Quando una combinazione con Win viene consumata, consumiamo anche il
  * rilascio di Win: altrimenti il sistema (e SmartDock) vedrebbero "Win premuto
  * da solo" e aprirebbero il menu delle app.
  */
 final class DesktopShortcuts {
 
-    static final boolean ENABLED = true;
+    private enum Action {
+        SCREENSHOT(true), MOVE(false), CLOSE(true), SHOW_DESKTOP(true), TOGGLE_PHONE(false);
 
-    private enum Action { SCREENSHOT, MOVE, CLOSE, TOGGLE_PHONE }
+        /** true = solo con il focus sul monitor; sul telefono il tasto fa quello di sempre. */
+        final boolean monitorOnly;
+        Action(boolean monitorOnly) { this.monitorOnly = monitorOnly; }
+    }
 
     private static final Set<Integer> consumedDowns = Collections.synchronizedSet(new HashSet<Integer>());
     private static volatile boolean metaComboUsed = false;
 
     /** @return true se l'evento va consumato. Thread di input: deve essere veloce. */
     static boolean onKey(KeyEvent ev) {
-        if (!ENABLED) return false;
         final int code = ev.getKeyCode();
         final int action = ev.getAction();
 
@@ -68,10 +74,10 @@ final class DesktopShortcuts {
         if (!ExternalDisplayGate.present) return false;
 
         final Action a = match(ev);
-        if (a == null) return false;
+        if (a == null || !Prefs.shortcuts()) return false;
 
         final int focused = AltTabHooks.topFocusedDisplayId();
-        if ((a == Action.SCREENSHOT || a == Action.CLOSE) && focused <= 0) return false;  // telefono: comportamento normale
+        if (a.monitorOnly && focused <= 0) return false;  // telefono: comportamento normale
 
         consumedDowns.add(code);
         if (ev.isMetaPressed()) metaComboUsed = true;
@@ -92,6 +98,7 @@ final class DesktopShortcuts {
         if (meta && shift && !alt && !ctrl && (c == KeyEvent.KEYCODE_DPAD_LEFT || c == KeyEvent.KEYCODE_DPAD_RIGHT
                 || c == KeyEvent.KEYCODE_DPAD_UP || c == KeyEvent.KEYCODE_DPAD_DOWN)) return Action.MOVE;
         if (alt && !meta && !ctrl && c == KeyEvent.KEYCODE_F4) return Action.CLOSE;
+        if (meta && !shift && !alt && !ctrl && c == KeyEvent.KEYCODE_D) return Action.SHOW_DESKTOP;
         if (meta && !shift && !alt && !ctrl && c == KeyEvent.KEYCODE_P) return Action.TOGGLE_PHONE;
         return null;
     }
@@ -100,6 +107,7 @@ final class DesktopShortcuts {
         switch (a) {
             case SCREENSHOT:   screenshot(focused); break;
             case CLOSE:        closeTop(focused); break;
+            case SHOW_DESKTOP: showDesktop(focused); break;
             case TOGGLE_PHONE: PhoneScreen.toggle(); break;
             case MOVE: {
                 int ext = ExternalDisplayGate.externalId;
@@ -125,6 +133,23 @@ final class DesktopShortcuts {
         if (t.isEmpty()) { XLog.i("[keys] Alt+F4: nessuna app sul display " + displayId); return; }
         XposedHelpers.callMethod(atm(), "removeTask", t.get(0));
         XLog.i("[keys] Alt+F4: chiuso task " + t.get(0) + " sul display " + displayId);
+    }
+
+    /** Win+D: porta in primo piano il desktop del dock; se non c'e', lo avvia. */
+    private static void showDesktop(int displayId) {
+        Context ctx = AltTabHooks.systemContext();
+        if (ctx == null) return;
+        String pkg = Prefs.launcherPkg();
+        Intent desktop = LauncherHooks.desktopIntent(ctx, pkg);
+        if (desktop == null) { XLog.i("[keys] Win+D: " + pkg + " non installato"); return; }
+        int task = AltTabHooks.taskOf(displayId, desktop.getComponent());
+        if (task >= 0) {
+            AltTabHooks.moveToFront(task);
+            XLog.i("[keys] Win+D: desktop del dock in primo piano (task " + task + ")");
+        } else {
+            LauncherHooks.startOnDisplay(ctx, desktop, displayId);
+            XLog.i("[keys] Win+D: avvio del desktop del dock richiesto sul display " + displayId);
+        }
     }
 
     private static void moveTop(int from, int to) {

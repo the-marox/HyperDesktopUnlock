@@ -20,6 +20,9 @@ Dell S2725QC over USB-C (DisplayPort Alt Mode).
   mouse cursor, apps launched on it stay on it. **No more 1:1 mirroring.**
 - Xiaomi's enforcer that silently re-enables mirroring is neutralised.
 - Tick *"Don't ask again"* and the phone goes straight to desktop on every connect.
+- With a dock app: the dock starts on the monitor by itself, the phone screen
+  turns off, and Alt+Tab, monitor screenshots and other desktop keyboard
+  shortcuts work. All of it can be changed in the module's settings app.
 
 Pair it with a secondary-display launcher such as
 [SmartDock](https://github.com/axel358/smartdock) (recommended, works very
@@ -29,12 +32,11 @@ taskbar, app switching and Back/Home buttons on the monitor.
 ## What you don't get (yet)
 
 - **AOSP desktop window decorations** (title bar, free resizing, snapping).
-  Xiaomi's SystemUI does not expose them; forcing the framework gates crashes
-  SystemUI with no benefit, so that path is disabled by default
-  (`FORCE_FRAMEWORK_WHEN_EXTERNAL`).
-- Windows can be made *freeform* (`WmHooks.ENABLED = true`), but then they are
-  HyperOS "floating windows": **fixed size**, phone-shaped. Most people prefer
-  full-screen apps on the monitor, which is the default.
+  Xiaomi's SystemUI does not expose them, and forcing the framework gates
+  crashed SystemUI on HyperOS 4 beta with no benefit.
+- **Resizable windows.** HyperOS can only turn apps into its fixed-size,
+  phone-shaped "floating windows", so apps run full screen on the monitor.
+  (The experimental code for both is in the project history, tag `v1.4.1`.)
 - A launcher on the monitor. HyperOS Home is single-display; use SmartDock/Taskbar.
 - A wallpaper on the monitor (it is black). Cosmetic.
 
@@ -48,27 +50,30 @@ places. The module hooks each one (see `app/src/main/java/.../`):
 | Hook | Process | What Xiaomi did | What the module does |
 |---|---|---|---|
 | `ConnectDialogHooks` | SystemUI | In `ExternalDisplayConnectionDialogDelegate` the Desktop button (`R.id.start_desktop_mode`) is set `GONE` **and its click listener is never attached** | Makes it visible, clickable, and wires the original `onStartDesktopClickListener` from the ViewModel → `enableForDesktop()` |
-| `SettingsTraceHooks` | system_server | 3 ms after SystemUI writes `Settings.Secure.mirror_built_in_display = 0`, the framework writes it back to `1` | Blocks writes of `1` coming from system_server (user choices from SystemUI/Settings still work); also protects `force_desktop_mode_on_external_displays` / `enable_freeform_support` from being reset |
+| `SettingsGuardHooks` | system_server | 3 ms after SystemUI writes `Settings.Secure.mirror_built_in_display = 0`, the framework writes it back to `1` | Blocks writes of `1` coming from system_server (user choices from SystemUI/Settings still work); also protects `force_desktop_mode_on_external_displays` / `enable_freeform_support` from being reset |
 | `MirrorPolicyHooks` | system_server | `com.android.server.display.SecondaryDisplayPolicy` (not AOSP) forces mirroring from `DisplayManagerService$SettingsObserver.onChange` | `forceEnableMirrorBuiltInDisplaySettingIfNeeded()` and `enableMirrorBuiltInDisplaySetting()` become no-ops |
-| `DesktopModeHooks` | SystemUI + system_server | `DesktopModeStatus.isDesktopModeSupported/canEnterDesktopMode` are `false`; `DesktopModeFlags.getToggleOverride()` is `OVERRIDE_UNSET` (the "Enable desktop experience" developer option is hidden) | Forces them to `true` / `OVERRIDE_ON` in WMShell. `com.android.server.wm.DesktopModeHelper` is left alone (see above) |
-| `LauncherHooks` | SystemUI | HyperOS Home is single-display, so the monitor stays empty | When the Desktop choice is applied (`applyConnectionChoice(enableMirroring=false)`, dialog or *Don't ask again*), launches a launcher on the external display via `ActivityOptions.setLaunchDisplayId`. Default package: `cu.axel.smartdock` (SmartDock); change `LAUNCHER_PACKAGE` for Taskbar etc. |
-| `PhoneScreen` (+ `ExternalDisplayGate`) | system_server | Pressing power puts the whole device to sleep, monitor included | ~2 s after an external **physical** display becomes a desktop display, turns off only the phone's panel (`SurfaceControl.setDisplayPowerMode(internalToken, OFF)`, same technique as scrcpy `--turn-screen-off`); waits for unlock if the phone is locked; turns it back on when the cable is unplugged. Once per connection: lock + wake the phone to get its screen back. Virtual displays (screen recording, cast) are ignored. Toggle: `PhoneScreen.TURN_OFF_ON_DESKTOP` |
-| `DockAccessibility` | system_server | Enabled accessibility services always start at boot, so the dock would also show up on the phone | Enables the dock's accessibility service (found dynamically in `LAUNCHER_PACKAGE`, e.g. SmartDock `DockService`) when the desktop starts, disables it when the cable is unplugged, and after boot if no monitor is attached. Also re-enables it if HyperOS turned it off. Toggle: `DockAccessibility.MANAGE` |
-| `AltTabHooks` | system_server | Alt+Tab is handled by the HyperOS launcher, which lives only on the phone: on the monitor it does nothing | Intercepts Alt+Tab at `InputManagerService.interceptKeyBeforeQueueing` **only** while a desktop display is active and has focus. Alt+Tab switches to the previous app on the monitor; keep Alt held and press Tab again to go further back; Alt+Shift+Tab goes the other way. No preview overlay. On the phone, Alt+Tab is untouched. Toggle: `AltTabHooks.ENABLED` |
-| `DesktopShortcuts` | system_server | HyperOS screenshots only capture the phone display; no way to move apps between displays from the keyboard | More keyboard shortcuts at the same input hook as Alt+Tab, only while a desktop display is active (see *Keyboard shortcuts*). Monitor screenshots use `DisplayManagerInternal.systemScreenshot(displayId)` and handed over a pipe to the module app (`ShotProvider`, protected by `INTERACT_ACROSS_USERS_FULL`), which saves them through MediaStore to `Pictures/Screenshots` (MediaProvider refuses to open files for writing to system_server). When a Win combination is consumed, the Win key-up is consumed too, so the system/dock does not treat it as "Win pressed alone". Toggle: `DesktopShortcuts.ENABLED` |
+| `DesktopModeHooks` | SystemUI + system_server | `DesktopModeStatus.isDesktopModeSupported/canEnterDesktopMode` are `false`; `DesktopModeFlags.getToggleOverride()` is `OVERRIDE_UNSET` (the "Enable desktop experience" developer option is hidden) | Forces them to `true` / `OVERRIDE_ON`; per-display checks (`…OnDisplay(displayId)`) only for displays other than the phone's. The framework's global `DesktopModeHelper` gates are left alone |
+| `LauncherHooks` | SystemUI | HyperOS Home is single-display, so the monitor stays empty | When the Desktop choice is applied (`applyConnectionChoice(enableMirroring=false)`, dialog or *Don't ask again*), launches the dock's desktop activity (`SECONDARY_HOME`, e.g. SmartDock `SecondaryLauncherActivity`) on the external display via `ActivityOptions.setLaunchDisplayId`. Dock package from the settings (default `cu.axel.smartdock`) |
+| `PhoneScreen` (+ `ExternalDisplayGate`) | system_server | Pressing power puts the whole device to sleep, monitor included | ~2 s after an external **physical** display becomes a desktop display, turns off only the phone's panel (`SurfaceControl.setDisplayPowerMode(internalToken, OFF)`, same technique as scrcpy `--turn-screen-off`); waits for unlock if the phone is locked; turns it back on when the cable is unplugged. Once per connection: lock + wake the phone to get its screen back. Virtual displays (screen recording, cast) are ignored |
+| `DockAccessibility` | system_server | Enabled accessibility services always start at boot, so the dock would also show up on the phone | Enables the dock's accessibility service (found dynamically in the dock package, e.g. SmartDock `DockService`) when the desktop starts, disables it when the cable is unplugged, and after boot if no monitor is attached. Also re-enables it if HyperOS turned it off |
+| `DesktopSession` | system_server | The monitor keeps its default density (tiny UI on a 4K screen), and the screen timeout can turn it off while you read | On connect, applies the monitor density chosen in the settings (`IWindowManager.setForcedDisplayDensityForUser`, like `wm density N -d <id>`, only if it differs from the current one) and, if enabled, holds a screen wake lock while the desktop is active. When you change either, the settings app sends a broadcast protected by a signature permission and system_server applies it at once |
+| `AltTabHooks` | system_server | Alt+Tab is handled by the HyperOS launcher, which lives only on the phone: on the monitor it does nothing | Intercepts Alt+Tab at `InputManagerService.interceptKeyBeforeQueueing` **only** while a desktop display is active and has focus. Alt+Tab switches to the previous app on the monitor; keep Alt held and press Tab again to go further back; Alt+Shift+Tab goes the other way. No preview overlay. On the phone, Alt+Tab is untouched |
+| `DesktopShortcuts` | system_server | HyperOS screenshots only capture the phone display; no way to move apps between displays from the keyboard | More keyboard shortcuts at the same input hook as Alt+Tab, only while a desktop display is active (see *Keyboard shortcuts*). Monitor screenshots use `DisplayManagerInternal.systemScreenshot(displayId)` and are handed over a pipe to the module app (`ShotProvider`, protected by `INTERACT_ACROSS_USERS_FULL`), which saves them through MediaStore to `Pictures/Screenshots` (MediaProvider refuses to open files for writing to system_server). When a Win combination is consumed, the Win key-up is consumed too, so the system/dock does not treat it as "Win pressed alone" |
 | `SettingsHooks` | Settings | The hidden AOSP *External displays* page crashes in `DisplayTopologyPreferenceController` (lateinit `paneContent` never set by the miuix adapter) | Marks that controller unavailable so the page renders |
 
-Optional, off by default:
+Settings are written by the module app (`SettingsActivity`) and read by the
+hooks through LSPosed's *new XSharedPreferences* (`xposedsharedprefs`), at
+the moment they are used, so changes need no reboot.
 
-| Toggle | File | Effect |
-|---|---|---|
-| `WmHooks.ENABLED` | `WmHooks.java` | Freeform windowing mode on non-default displays (`DisplayWindowSettings.getWindowingModeLocked` → `FREEFORM`, `DisplayContent.forceDesktopMode` → `true`, `ATMS.mSupportsFreeformWindowManagement` → `true`) |
-| `DesktopModeHooks.FORCE_FRAMEWORK_WHEN_EXTERNAL` | `DesktopModeHooks.java` | Forces the framework `DesktopModeHelper` gates to `true` **only while an external display is attached** (`ExternalDisplayGate`), so boot is never affected. Crashes SystemUI on HyperOS 4 beta; kept for experimentation |
-| `*.DISCOVERY_LOG` | each file | Logs every call to the hooked classes with arguments/results — how all of the above was found |
-| `DesktopModeHooks.FORCE_DISABLE_RESTRICTIONS` | `DesktopModeHooks.java` | `enforceDeviceRestrictions()` → `false`. **Known to bootloop** when done through the global property; leave off |
+Logs go to logcat with the tag `HyperDesktop` (`adb logcat -s HyperDesktop`)
+and to LSPosed's log. At boot each process prints one summary line:
 
-All logs go through `XposedBridge.log` with the prefix `HyperDesktop:` —
-`adb logcat | grep -i HyperDesktop`, or the LSPosed *Log* page.
+```
+[diag] system_server v1.5.0: gate OK, desktop-flags OK, mirror-guard OK, mirror-policy OK, keys OK | settings: saved
+```
+
+`MISSING` there means a hook did not attach (usually because a firmware
+update renamed something) — please include that line in bug reports.
 
 ---
 
@@ -86,25 +91,40 @@ All logs go through `XposedBridge.log` with the prefix `HyperDesktop:` —
 2. LSPosed → Modules → enable **HyperDesktop Unlock**.
 3. Scope: **System Framework**, **System UI**, **Settings**.
 4. Reboot.
+5. Optional: open **HyperDesktop Unlock** from the app drawer (or the module's
+   settings in LSPosed) to change the settings.
 
 ## Use
 
 1. Connect the monitor. The dialog now shows **Computer** above *Mirroring*.
 2. Tap **Computer** (tick *Don't ask again* to make it automatic).
 3. The monitor becomes a second display with its own status bar and cursor.
-   If [SmartDock](https://github.com/axel358/smartdock) is installed, the module
-   starts it on the monitor automatically (1.1.0+). Otherwise launch apps from a shell:
+   If [SmartDock](https://github.com/axel358/smartdock) (or the dock set in the
+   settings) is installed, the module starts it on the monitor automatically.
+   Otherwise launch apps from a shell:
    ```
    am start --display 2 -n com.android.settings/.Settings
    ```
    (`dumpsys display | grep "Display [0-9]*:"` lists display ids.)
-4. The phone's own screen turns off automatically a couple of seconds later (1.2.0+); the phone stays awake
+4. The phone's own screen turns off automatically a couple of seconds later; the phone stays awake
    and can be used as a touchpad by dock apps that support it. Need the phone screen? Press power twice
-   (lock + wake): it comes back and stays on until the next connection.
-5. **Alt+Tab** on a physical keyboard switches between the apps open on the monitor (1.3.0+): hold Alt and
-   press Tab repeatedly to go further back, Alt+Shift+Tab to go the other way.
+   (lock + wake), or **Win+P**: it comes back and stays on until the next connection.
+5. Everything too small or too big on the monitor? Set **Monitor density** in the settings
+   (4K monitors usually look right between 240 and 360 dpi); it applies immediately.
 6. **Back** on the monitor: mouse side button, `Esc` on a keyboard, the
    launcher's Back button, or `input -d 2 keyevent KEYCODE_BACK`.
+
+### Settings
+
+| Setting | Default | |
+|---|---|---|
+| Start the dock on the monitor | on | Launches the dock's desktop on the monitor when you choose Computer |
+| Dock app (package name) | `cu.axel.smartdock` | e.g. `com.farmerbb.taskbar` for Taskbar |
+| Manage the dock's accessibility service | on | On in desktop mode, off when unplugged and after boot |
+| Turn off the phone screen in desktop mode | on | Power twice or Win+P brings it back |
+| Keep the monitor on | off | Ignores the screen timeout in desktop mode; the power button still works |
+| Monitor density (dpi) | not set | 100–800, or 0 for the monitor's default. Never touched until you set it; clear the field and Apply to stop changing it |
+| Desktop keyboard shortcuts | on | Alt+Tab and all the shortcuts below |
 
 ### Keyboard shortcuts (physical keyboard, desktop mode only)
 
@@ -114,6 +134,7 @@ All logs go through `XposedBridge.log` with the prefix `HyperDesktop:` —
 | **Print Screen** or **Win+Shift+S** | Screenshot of the monitor → `Pictures/Screenshots` (with focus on the phone: normal HyperOS screenshot) |
 | **Win+Shift+Arrow** | Move the foreground app monitor → phone, or phone → monitor |
 | **Alt+F4** | Close the foreground app on the monitor |
+| **Win+D** | Show the dock's desktop on the monitor (starts it if it was closed) |
 | **Win+P** | Turn the phone screen on/off |
 
 To go back to mirroring just pick *Mirroring* in the dialog (or clear the
@@ -122,6 +143,7 @@ saved choice in Settings → *External displays*, reachable via
 
 ## If something goes wrong
 
+- Check the `[diag]` lines: `adb logcat -s HyperDesktop | grep diag`.
 - LSPosed disables a module automatically after repeated system crashes.
 - Otherwise, with the phone plugged into a PC while booting:
   ```
@@ -129,9 +151,10 @@ saved choice in Settings → *External displays*, reachable via
   adb shell pm uninstall io.maurizio.hyperdesktop
   ```
   Uninstalling removes the module; nothing else is modified (no system
-  partition changes). The only persistent side effect is
-  `Settings.Secure.mirror_built_in_display = 0`; set it back to `1` to restore
-  the stock behaviour without the module.
+  partition changes). The persistent side effects are
+  `Settings.Secure.mirror_built_in_display = 0` (set it back to `1` to restore
+  the stock behaviour without the module) and, if you set one, the monitor
+  density (`adb shell wm density reset -d <id>`).
 
 ## Build
 
@@ -167,8 +190,10 @@ Short version, in case you want to port it to another Xiaomi device:
    `SecondaryDisplayPolicy` re-enabling mirroring 3 ms after the desktop choice.
 6. Blocking that write and neutralising the policy gave the separate display.
 
-If your device differs, enable `DISCOVERY_LOG` and look at the log while
-connecting the monitor; the class and method names you need are usually there.
+If your device differs, the `[diag]` line tells you which hook did not attach.
+The discovery logging used above (every call to the hooked classes with
+arguments and results, stack traces of settings writes) is in the project
+history up to tag `v1.4.1`.
 
 ## Credits
 
@@ -197,7 +222,10 @@ nasconde, e neutralizza il meccanismo (`SecondaryDisplayPolicy`) che riporta
 il monitor in mirroring. Risultato: il monitor diventa un **secondo display
 indipendente**, con barra di stato, mouse e app a schermo intero. Per avere
 start menu, barra e cambio app sul monitor, abbina
-[SmartDock](https://github.com/axel358/smartdock). Le finestre
-ridimensionabili in stile AOSP non sono disponibili su questa build (Xiaomi
-non le espone); le finestre "mobili" di HyperOS si possono attivare
-(`WmHooks.ENABLED`) ma hanno dimensione fissa.
+[SmartDock](https://github.com/axel358/smartdock): il modulo lo avvia da solo
+sul monitor, spegne lo schermo del telefono e aggiunge Alt+Tab, screenshot del
+monitor e altre scorciatoie da tastiera. Dalla 1.5.0 c'è un'app di
+impostazioni (in italiano) per scegliere il dock, lo spegnimento del telefono,
+la densità del monitor, "tieni acceso" e le scorciatoie. Le finestre
+ridimensionabili in stile AOSP non sono disponibili su questa build: Xiaomi
+non le espone e le finestre "mobili" di HyperOS hanno dimensione fissa.

@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Solo l'app del modulo (stessa firma) puo' chiedere a system_server di
+         riapplicare subito le impostazioni (densita' del monitor, tieni acceso). -->
+    <permission
+        android:name="io.maurizio.hyperdesktop.permission.APPLY_SETTINGS"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="io.maurizio.hyperdesktop.permission.APPLY_SETTINGS" />
+
     <application
         android:allowBackup="false"
         android:icon="@android:drawable/ic_menu_manage"
-        android:label="@string/app_name">
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme">
 
         <!-- Metadati riconosciuti da LSPosed -->
         <meta-data
@@ -19,6 +27,25 @@
         <meta-data
             android:name="xposedscope"
             android:resource="@array/xposed_scope" />
+        <!-- Preferenze dell'app leggibili dagli hook (XSharedPreferences di LSPosed) -->
+        <meta-data
+            android:name="xposedsharedprefs"
+            android:value="true" />
+
+        <!-- Impostazioni: dal cassetto app e dal pulsante del modulo in LSPosed -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS" />
+            </intent-filter>
+        </activity>
 
         <!-- Salva gli screenshot del monitor per conto di system_server.
              INTERACT_ACROSS_USERS_FULL: le app di terze parti non possono

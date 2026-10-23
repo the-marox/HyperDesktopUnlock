@@ -27,11 +27,12 @@ import de.robv.android.xposed.XposedHelpers;
  *  - riaccende quando il display esterno viene rimosso (cavo staccato);
  *  - una volta per collegamento: se l'utente blocca e risveglia il telefono,
  *    il pannello torna acceso e resta acceso (via d'uscita).
+ * Lo spegnimento automatico si puo' disattivare (Prefs.phoneOff); Win+P
+ * (toggle) funziona comunque.
  */
 public final class PhoneScreen {
 
-    static final boolean TURN_OFF_ON_DESKTOP = true;
-    static final int     DELAY_MS            = 2000;
+    static final int DELAY_MS = 2000;
 
     private static final int POWER_MODE_OFF    = 0;
     private static final int POWER_MODE_NORMAL = 2;
@@ -44,13 +45,23 @@ public final class PhoneScreen {
 
     static void init(ClassLoader classLoader) { cl = classLoader; }
 
-    /** Chiamato da ExternalDisplayGate quando compare un display esterno fisico. */
+    /**
+     * Chiamato da ExternalDisplayGate quando compare un display esterno fisico.
+     * Siamo dentro il lock del WindowManager: tutto il lavoro (registrazione del
+     * receiver = lock di ActivityManager, lettura impostazioni) va sul nostro thread.
+     */
     static void onExternalAdded() {
-        if (!TURN_OFF_ON_DESKTOP) return;
-        Context c0 = systemContext();
-        if (c0 != null) registerReceiver(c0);
+        handler().post(new Runnable() {
+            @Override public void run() {
+                Context c0 = systemContext();
+                if (c0 != null) registerReceiver(c0);
+            }
+        });
         handler().postDelayed(new Runnable() {
-            @Override public void run() { tryTurnOff("collegamento"); }
+            @Override public void run() {
+                if (Prefs.phoneOff()) tryTurnOff("collegamento");
+                else XLog.i("[screen] spegnimento del telefono disattivato nelle impostazioni");
+            }
         }, DELAY_MS);
     }
 
@@ -119,6 +130,8 @@ public final class PhoneScreen {
         handler().post(new Runnable() {
             @Override public void run() {
                 if (!ExternalDisplayGate.present || !isInteractive()) return;
+                Context c0 = systemContext();
+                if (c0 != null) registerReceiver(c0);   // per accorgersi del risveglio
                 if (turnedOff) {
                     if (setInternalPower(POWER_MODE_NORMAL)) { turnedOff = false; XLog.i("[screen] pannello telefono RIACCESO (Win+P)"); }
                 } else {

@@ -7,7 +7,10 @@ package io.maurizio.hyperdesktop;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
@@ -18,23 +21,20 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 /**
  * Forza i gate "desktop supportato" di WMShell / framework.
  *
- * v0.9: aggiunta la classe DesktopState e il trattamento per-display:
- * i metodi booleani il cui nome contiene "OnDisplay" (es.
- * isDesktopModeSupportedOnDisplay(displayId)) vengono forzati a true SOLO
- * quando il displayId e' diverso da 0 (il telefono). Cosi' il monitor viene
- * trattato da desktop (finestre libere con barra del titolo) e lo schermo del
- * telefono resta normale.
+ *  - Classi dei gate (DesktopModeStatus, DesktopModeFlags...): i metodi
+ *    "desktop supportato" restituiscono true e il ToggleOverride diventa
+ *    OVERRIDE_ON (cosi' compare anche l'opzione sviluppatore).
+ *  - Metodi per-display (nome con "OnDisplay", es. isDesktopModeSupportedOnDisplay):
+ *    true SOLO per display diversi da 0, quindi il monitor e' trattato da
+ *    desktop e lo schermo del telefono resta normale.
+ *  - DesktopModeHelper (system_server): solo i metodi per-display. Forzarne i
+ *    gate globali faceva crashare SystemUI su HyperOS 4 beta senza benefici, e
+ *    disattivare enforceDeviceRestrictions porta al bootloop: non lo facciamo.
+ *    (Il codice sperimentale e' nella storia del progetto, tag v1.4.1.)
  */
 public final class DesktopModeHooks {
 
-    // ============================================================
-    static final boolean FORCE_SUPPORTED            = true;
-    static final boolean FORCE_TOGGLE_ON            = true;
-    static final boolean FORCE_DISABLE_RESTRICTIONS = false;  // RISCHIO bootloop
-    static final boolean DISCOVERY_LOG              = false;  // spento (v0.11)
-    // ============================================================
-
-    private static final String[] CANDIDATE_CLASSES = {
+    private static final String[] GATE_CLASSES = {
         "com.android.wm.shell.desktopmode.DesktopModeStatus",
         "com.android.wm.shell.shared.desktopmode.DesktopModeStatus",
         "com.android.wm.shell.shared.desktopmode.DesktopState",
@@ -43,160 +43,78 @@ public final class DesktopModeHooks {
         "android.window.DesktopModeFlags"
     };
 
-    private static final String[] TOGGLE_GETTERS = {
-        "getToggleOverride", "getRawToggleOverride", "getToggleOverrideFromSystem"
-    };
-
-    /** Metodi gia' noti e rumorosi: non loggarli. */
-    private static final List<String> DISCOVERY_SKIP = Arrays.asList(
-        "isTrue", "isFlagTrue", "getToggleOverride", "getRawToggleOverride",
-        "getToggleOverrideFromSystem", "isDesktopModeForcedEnabled");
-
-    /**
-     * Classi del framework (system_server) da trattare SOLO per-display:
-     * nessuna forzatura globale (sospetta dietro il bootloop), solo i metodi
-     * "OnDisplay" per display != 0, piu' la ricognizione.
-     */
+    /** Classi del framework trattate SOLO per-display. */
     private static final String[] PER_DISPLAY_ONLY_CLASSES = {
         "com.android.server.wm.DesktopModeHelper"
     };
 
-    /** v0.12: gate globali del framework forzati a true SOLO con monitor collegato. */
-    static final boolean FORCE_FRAMEWORK_WHEN_EXTERNAL = false;  // v0.13: spento, causava crash SystemUI senza benefici
-    private static final List<String> FRAMEWORK_GATED = Arrays.asList(
-        "isDesktopModeSupported", "isDeviceEligibleForDesktopMode", "canEnterDesktopMode",
-        "isDesktopModeDevOptionsSupported", "isDesktopModeEnabledByDevOption");
+    private static final List<String> FORCED_TRUE = Arrays.asList(
+        "isDesktopModeSupported", "canEnterDesktopMode", "isDesktopModeForcedEnabled",
+        "canShowDesktopModeDevOption", "canShowDesktopExperienceDevOption");
 
-    private static final java.util.Set<String> GATED_LOGGED =
-        java.util.Collections.synchronizedSet(new java.util.HashSet<String>());
+    private static final String[] TOGGLE_GETTERS = {
+        "getToggleOverride", "getRawToggleOverride", "getToggleOverrideFromSystem"
+    };
 
-    /** Logga una sola volta per metodo che la forzatura e' entrata in azione. */
-    private static void logGatedOnce(String where, String name) {
-        if (GATED_LOGGED.add(name)) {
-            XLog.i("[" + where + "] " + name + "() -> true (gate monitor attivo)");
-        }
-    }
+    /** Ogni forzatura per-display viene registrata nel log una sola volta. */
+    private static final Set<String> LOGGED = Collections.synchronizedSet(new HashSet<String>());
 
-    public static void hook(LoadPackageParam lpparam, String where) {
-        boolean found = false;
-        for (String cn : CANDIDATE_CLASSES) {
-            Class<?> cls = XposedHelpers.findClassIfExists(cn, lpparam.classLoader);
-            if (cls == null) continue;
-            found = true;
-            XLog.i("[" + where + "] trovata classe gate: " + cn);
-            hookClass(lpparam.classLoader, cls, where, true);
+    public static void hook(LoadPackageParam lp, String where) {
+        int n = 0;
+        for (String cn : GATE_CLASSES) {
+            Class<?> cls = XposedHelpers.findClassIfExists(cn, lp.classLoader);
+            if (cls != null) n += hookClass(lp.classLoader, cls, where, true);
         }
         for (String cn : PER_DISPLAY_ONLY_CLASSES) {
-            Class<?> cls = XposedHelpers.findClassIfExists(cn, lpparam.classLoader);
-            if (cls == null) continue;
-            found = true;
-            XLog.i("[" + where + "] trovata classe gate (solo per-display): " + cn);
-            hookClass(lpparam.classLoader, cls, where, false);
+            Class<?> cls = XposedHelpers.findClassIfExists(cn, lp.classLoader);
+            if (cls != null) n += hookClass(lp.classLoader, cls, where, false);
         }
-        if (!found) {
-            XLog.i("[" + where + "] nessuna classe DesktopModeStatus/Flags in questo processo");
-        }
+        if (n == 0) XLog.i("[" + where + "] nessun gate desktop trovato in questo processo");
+        Diag.mark("desktop-flags", n > 0);
     }
 
-    private static void hookClass(ClassLoader cl, Class<?> cls, final String where,
-                                  final boolean globalForces) {
-        final Object overrideOn = (FORCE_TOGGLE_ON && globalForces) ? findOverrideOn(cl, cls) : null;
-
+    private static int hookClass(ClassLoader cl, Class<?> cls, final String where, boolean globalForces) {
+        Object overrideOn = globalForces ? findOverrideOn(cl, cls) : null;
+        int n = 0;
         for (final Method m : cls.getDeclaredMethods()) {
             final String name = m.getName();
-
-            // --- Per-display: forza true solo per display != 0 ---
-            if (FORCE_SUPPORTED && m.getReturnType() == boolean.class && name.contains("OnDisplay")) {
-                try {
-                    XposedBridge.hookMethod(m, new XC_MethodHook() {
-                        @Override protected void beforeHookedMethod(MethodHookParam p) {
-                            Integer did = firstInt(p.args);
-                            if (did != null && did != 0) {
-                                p.setResult(Boolean.TRUE);
-                                XLog.i("[" + where + "] " + name + "(display " + did + ") -> true (forzato)");
-                            }
-                        }
-                        @Override protected void afterHookedMethod(MethodHookParam p) {
-                            Integer did = firstInt(p.args);
-                            if (did == null || did == 0) {
-                                XLog.i("[" + where + "] " + name + "(display " + did + ") = " + p.getResult());
-                            }
-                        }
-                    });
-                    XLog.i("[" + where + "] hook per-display su " + name);
-                } catch (Throwable t) { XLog.e("hook per-display fallito su " + name, t); }
+            if (m.getReturnType() == boolean.class && name.contains("OnDisplay")) {
+                if (hookPerDisplay(m, where)) n++;
                 continue;
             }
-
-            if (DISCOVERY_LOG && !DISCOVERY_SKIP.contains(name)) {
-                try {
-                    XposedBridge.hookMethod(m, new XC_MethodHook() {
-                        @Override protected void afterHookedMethod(MethodHookParam p) {
-                            XLog.i("[" + where + "] " + name + "(" + argsOf(p.args) + ") = " + p.getResult());
-                        }
-                    });
-                } catch (Throwable ignored) {}
-            }
-
-            // --- Getter dell'enum ToggleOverride -> OVERRIDE_ON ---
-            if (overrideOn != null && isToggleGetter(name)
-                    && m.getReturnType().isInstance(overrideOn)) {
-                forceObject(m, overrideOn, where);
-                continue;
-            }
-
-            if (m.getReturnType() != boolean.class) continue;
-
-            if (!globalForces) {
-                // Framework (DesktopModeHelper): forza true SOLO mentre un monitor
-                // esterno e' collegato (ExternalDisplayGate). All'avvio resta tutto
-                // com'e', quindi niente rischio bootloop.
-                if (FORCE_FRAMEWORK_WHEN_EXTERNAL && FRAMEWORK_GATED.contains(name)) {
-                    try {
-                        XposedBridge.hookMethod(m, new XC_MethodHook() {
-                            @Override protected void beforeHookedMethod(MethodHookParam p) {
-                                if (ExternalDisplayGate.present) {
-                                    p.setResult(Boolean.TRUE);
-                                    logGatedOnce(where, name);
-                                }
-                            }
-                        });
-                        XLog.i("[" + where + "] hook con gate monitor su " + name);
-                    } catch (Throwable t) { XLog.e("hook gated fallito su " + name, t); }
-                }
-                continue;
-            }
-
-            if (FORCE_SUPPORTED &&
-                    (name.equals("isDesktopModeSupported")
-                     || name.equals("canEnterDesktopMode")
-                     || name.equals("canShowDesktopModeDevOption")
-                     || name.equals("canShowDesktopExperienceDevOption"))) {
-                forceBool(m, true, where);
-            } else if (FORCE_TOGGLE_ON && name.equals("isDesktopModeForcedEnabled")) {
-                forceBool(m, true, where);
-            } else if (FORCE_DISABLE_RESTRICTIONS && name.equals("enforceDeviceRestrictions")) {
-                forceBool(m, false, where);
+            if (!globalForces) continue;
+            if (overrideOn != null && isToggleGetter(name) && m.getReturnType().isInstance(overrideOn)) {
+                if (force(m, overrideOn)) n++;
+            } else if (m.getReturnType() == boolean.class && FORCED_TRUE.contains(name)) {
+                if (force(m, Boolean.TRUE)) n++;
             }
         }
+        XLog.i("[" + where + "] " + cls.getName() + ": " + n + " gate forzati");
+        return n;
+    }
+
+    private static boolean hookPerDisplay(Method m, final String where) {
+        final String name = m.getName();
+        try {
+            XposedBridge.hookMethod(m, new XC_MethodHook() {
+                @Override protected void beforeHookedMethod(MethodHookParam p) {
+                    Integer did = firstInt(p.args);
+                    if (did != null && did != 0) {
+                        p.setResult(Boolean.TRUE);
+                        if (LOGGED.add(name + "#" + did)) {
+                            XLog.i("[" + where + "] " + name + "(display " + did + ") -> true");
+                        }
+                    }
+                }
+            });
+            return true;
+        } catch (Throwable t) { XLog.e("[" + where + "] hook per-display fallito su " + name, t); return false; }
     }
 
     private static Integer firstInt(Object[] args) {
         if (args == null) return null;
         for (Object a : args) if (a instanceof Integer) return (Integer) a;
         return null;
-    }
-
-    private static String argsOf(Object[] args) {
-        if (args == null || args.length == 0) return "";
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < args.length; i++) {
-            if (i > 0) sb.append(", ");
-            String s = String.valueOf(args[i]);
-            if (s.length() > 50) s = s.substring(0, 50) + "…";
-            sb.append(s);
-        }
-        return sb.toString();
     }
 
     private static boolean isToggleGetter(String name) {
@@ -210,8 +128,7 @@ public final class DesktopModeHooks {
             cls.getName() + "$ToggleOverride"
         };
         for (String en : enumNames) {
-            Class<?> e = XposedHelpers.findClassIfExists(en, cl);
-            Object c = constByName(e, "OVERRIDE_ON");
+            Object c = constByName(XposedHelpers.findClassIfExists(en, cl), "OVERRIDE_ON");
             if (c != null) return c;
         }
         for (Method m : cls.getDeclaredMethods()) {
@@ -232,18 +149,11 @@ public final class DesktopModeHooks {
         return null;
     }
 
-    private static void forceBool(Method m, boolean value, String where) {
+    private static boolean force(Method m, Object value) {
         try {
             XposedBridge.hookMethod(m, XC_MethodReplacement.returnConstant(value));
-            XLog.i("[" + where + "] override " + m.getName() + "() -> " + value);
-        } catch (Throwable t) { XLog.e("hook fallito su " + m.getName(), t); }
-    }
-
-    private static void forceObject(Method m, Object value, String where) {
-        try {
-            XposedBridge.hookMethod(m, XC_MethodReplacement.returnConstant(value));
-            XLog.i("[" + where + "] override " + m.getName() + "() -> " + value);
-        } catch (Throwable t) { XLog.e("hook fallito su " + m.getName(), t); }
+            return true;
+        } catch (Throwable t) { XLog.e("hook fallito su " + m.getName(), t); return false; }
     }
 
     private DesktopModeHooks() {}

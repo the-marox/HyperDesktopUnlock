@@ -18,8 +18,8 @@ android {
         applicationId 'io.maurizio.hyperdesktop'
         minSdk 31
         targetSdk 35
-        versionCode 141
-        versionName '1.4.1'
+        versionCode 150
+        versionName '1.5.0'
     }
 
     signingConfigs {
@@ -38,6 +38,10 @@ android {
             minifyEnabled false
             signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
+    }
+
+    buildFeatures {
+        buildConfig true   // BuildConfig.VERSION_NAME per la diagnostica e le impostazioni
     }
 
     compileOptions {

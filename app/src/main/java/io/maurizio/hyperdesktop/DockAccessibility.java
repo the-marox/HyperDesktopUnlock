@@ -29,46 +29,74 @@ import de.robv.android.xposed.XposedHelpers;
  *  - collegamento in desktop  -> servizio attivato (prima che parta il launcher);
  *  - cavo staccato            -> servizio disattivato;
  *  - avvio senza monitor      -> se e' rimasto attivo, viene disattivato.
- * Il servizio viene cercato dinamicamente nel pacchetto LauncherHooks.LAUNCHER_PACKAGE.
+ * Il servizio viene cercato dinamicamente nel pacchetto del dock scelto nelle
+ * impostazioni. Si puo' disattivare (Prefs.manageA11y), letto al momento dell'uso.
+ * Il servizio attivato al collegamento viene ricordato e disattivato allo stacco
+ * anche se nel frattempo il dock o l'interruttore sono cambiati.
  */
 final class DockAccessibility {
-
-    static final boolean MANAGE = true;
 
     private static final String KEY_SERVICES = "enabled_accessibility_services";
     private static final String KEY_ENABLED  = "accessibility_enabled";
     private static final int[]  BOOT_CHECK_MS = { 30_000, 90_000 };
 
     private static Handler handler;
+    /** Servizio gestito in questa sessione desktop (solo thread handler). */
+    private static ComponentName managed;
 
     static void onExternalAdded() {
-        if (!MANAGE) return;
-        handler().post(new Runnable() { @Override public void run() { set(true, "collegamento"); } });
+        handler().post(new Runnable() {
+            @Override public void run() {
+                ComponentName svc = current();
+                if (svc != null && set(svc, true, "collegamento")) managed = svc;
+            }
+        });
     }
 
     static void onExternalRemoved() {
-        if (!MANAGE) return;
-        handler().post(new Runnable() { @Override public void run() { set(false, "cavo staccato"); } });
+        handler().post(new Runnable() {
+            @Override public void run() {
+                ComponentName svc = managed != null ? managed : current();
+                managed = null;
+                if (svc != null) set(svc, false, "cavo staccato");
+            }
+        });
     }
 
     /** Dopo il boot: se non c'e' un monitor in desktop, il dock non deve restare attivo. */
     static void scheduleBootCheck() {
-        if (!MANAGE) return;
         for (int ms : BOOT_CHECK_MS) {
             handler().postDelayed(new Runnable() {
                 @Override public void run() {
-                    if (!ExternalDisplayGate.present) set(false, "avvio senza monitor");
+                    if (ExternalDisplayGate.present) return;
+                    ComponentName svc = current();
+                    if (svc != null) set(svc, false, "avvio senza monitor");
                 }
             }, ms);
         }
     }
 
-    private static void set(boolean enable, String why) {
+    /** Servizio del dock attuale, o null se la gestione e' spenta / il dock non ne ha. */
+    private static ComponentName current() {
+        try {
+            if (!Prefs.manageA11y()) return null;
+            Context ctx = systemContext();
+            if (ctx == null) return null;
+            String pkg = Prefs.launcherPkg();
+            ComponentName svc = findService(ctx, pkg);
+            if (svc == null) XLog.i("[dock] nessun servizio di accessibilita' in " + pkg);
+            return svc;
+        } catch (Throwable t) {
+            XLog.e("[dock] ricerca del servizio fallita", t);
+            return null;
+        }
+    }
+
+    /** @return true se, alla fine, il servizio e' nello stato voluto. */
+    private static boolean set(ComponentName svc, boolean enable, String why) {
         try {
             Context ctx = systemContext();
-            if (ctx == null) return;
-            ComponentName svc = findService(ctx);
-            if (svc == null) { XLog.i("[dock] nessun servizio di accessibilita' in " + LauncherHooks.LAUNCHER_PACKAGE); return; }
+            if (ctx == null) return false;
 
             ContentResolver cr = ctx.getContentResolver();
             String cur = Settings.Secure.getString(cr, KEY_SERVICES);
@@ -83,19 +111,21 @@ final class DockAccessibility {
                 }
             }
             if (enable && !present) items.add(svc.flattenToString());
-            if (enable == present) return;   // gia' nello stato voluto
+            if (enable == present) return true;   // gia' nello stato voluto
 
             Settings.Secure.putString(cr, KEY_SERVICES, TextUtils.join(":", items));
             if (enable) Settings.Secure.putInt(cr, KEY_ENABLED, 1);
             XLog.i("[dock] servizio " + svc.flattenToShortString() + (enable ? " ATTIVATO" : " DISATTIVATO") + " (" + why + ")");
+            return true;
         } catch (Throwable t) {
             XLog.e("[dock] gestione accessibilita' fallita", t);
+            return false;
         }
     }
 
-    private static ComponentName findService(Context ctx) {
+    private static ComponentName findService(Context ctx, String pkg) {
         Intent q = new Intent("android.accessibilityservice.AccessibilityService")
-                .setPackage(LauncherHooks.LAUNCHER_PACKAGE);
+                .setPackage(pkg);
         List<ResolveInfo> r = ctx.getPackageManager().queryIntentServices(q, 0);
         if (r == null || r.isEmpty()) return null;
         return new ComponentName(r.get(0).serviceInfo.packageName, r.get(0).serviceInfo.name);

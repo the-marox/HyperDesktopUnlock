@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_active">Le modifiche valgono subito. Riavviare serve solo dopo aver installato o aggiornato il modulo.</string>
+    <string name="status_unavailable">⚠ LSPosed non ha fornito una cartella per le impostazioni. Riavvia e riapri questa schermata.</string>
+    <string name="status_inactive">⚠ Il modulo non è attivo in LSPosed, quindi queste impostazioni non arrivano al sistema. Attivalo in LSPosed (ambito: Framework di sistema, Interfaccia di sistema, Impostazioni), riavvia e riapri questa schermata.</string>
+
+    <string name="section_dock">Dock</string>
+    <string name="auto_launch_title">Avvia il dock sul monitor</string>
+    <string name="auto_launch_summary">Apre il desktop del dock sul monitor quando scegli Computer.</string>
+    <string name="launcher_pkg_title">App del dock (nome del pacchetto)</string>
+    <string name="launcher_pkg_summary">SmartDock: cu.axel.smartdock · Taskbar: com.farmerbb.taskbar</string>
+    <string name="manage_a11y_title">Gestisci il servizio di accessibilità del dock</string>
+    <string name="manage_a11y_summary">Lo attiva quando parte il desktop e lo spegne quando stacchi il cavo, così il dock non compare mai sul telefono.</string>
+
+    <string name="section_phone">Telefono</string>
+    <string name="phone_off_title">Spegni lo schermo del telefono in modalità desktop</string>
+    <string name="phone_off_summary">Il telefono resta acceso. Premi due volte il tasto di accensione, o Win+P, per riavere lo schermo.</string>
+    <string name="keep_awake_title">Tieni acceso il monitor</string>
+    <string name="keep_awake_summary">Ignora lo spegnimento automatico dello schermo in modalità desktop. Attivalo se il monitor si spegne quando non usi mouse o tastiera. Il tasto di accensione funziona comunque.</string>
+
+    <string name="section_monitor">Monitor</string>
+    <string name="density_title">Densità del monitor (dpi)</string>
+    <string name="density_summary">Più alto = più grande. Sui monitor 4K di solito va bene tra 240 e 360. 0 = valore predefinito del monitor; lascia vuoto per non cambiarla mai.</string>
+    <string name="density_apply">Applica</string>
+    <string name="density_invalid">Inserisci 0 o un valore tra 100 e 800</string>
+    <string name="density_cleared">Fatto: il modulo non cambierà più la densità del monitor.</string>
+    <string name="density_saved">Salvato. Applicato subito se il monitor è collegato, altrimenti al prossimo collegamento.</string>
+
+    <string name="section_keyboard">Tastiera</string>
+    <string name="shortcuts_title">Scorciatoie da tastiera del desktop</string>
+    <string name="shortcuts_list">Alt+Tab · Alt+Maiusc+Tab — cambia app sul monitor\nStamp · Win+Maiusc+S — screenshot del monitor\nWin+Maiusc+freccia — sposta un\'app tra monitor e telefono\nAlt+F4 — chiudi l\'app sul monitor\nWin+D — mostra il desktop del dock\nWin+P — schermo del telefono acceso/spento</string>
+</resources>

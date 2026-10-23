@@ -8,13 +8,18 @@ package io.maurizio.hyperdesktop;
 import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.hardware.display.DisplayManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.os.UserHandle;
 import android.view.Display;
 
 import java.lang.reflect.Method;
+import java.util.List;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -22,19 +27,18 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 /**
- * Avvio automatico di un launcher (SmartDock) sul display esterno quando si
- * entra in modalita' desktop.
+ * Avvio automatico del dock (SmartDock, o il pacchetto scelto nelle
+ * impostazioni) sul display esterno quando si entra in modalita' desktop.
  *
- * Aggancia ConnectingDisplayViewModel.applyConnectionChoice(enableMirroring):
- * viene attraversato sia dal tap su "Computer" nella finestra, sia dal percorso
- * automatico "non chiedermelo piu'". Quando enableMirroring == false (scelta
- * Desktop) attende che il display esterno sia attivo e ci lancia sopra il
- * launcher con ActivityOptions.setLaunchDisplayId.
+ * Aggancia ConnectingDisplayViewModel.applyConnectionChoice(enableMirroring)
+ * in SystemUI: viene attraversato sia dal tap su "Computer" nella finestra, sia
+ * dal percorso automatico "non chiedermelo piu'". Quando enableMirroring == false
+ * (scelta Desktop) attende che il display esterno sia attivo e ci lancia sopra
+ * il desktop del dock con ActivityOptions.setLaunchDisplayId.
+ *
+ * desktopIntent()/startOnDisplay() sono usati anche da Win+D (system_server).
  */
 public final class LauncherHooks {
-
-    static final boolean AUTO_LAUNCH      = true;
-    static final String  LAUNCHER_PACKAGE = "cu.axel.smartdock";
 
     private static final String VIEWMODEL =
         "com.android.systemui.display.ui.viewmodel.ConnectingDisplayViewModel";
@@ -44,9 +48,8 @@ public final class LauncherHooks {
     private static boolean launched    = false;
 
     public static void hook(LoadPackageParam lp) {
-        if (!AUTO_LAUNCH) return;
         Class<?> vm = XposedHelpers.findClassIfExists(VIEWMODEL, lp.classLoader);
-        if (vm == null) { XLog.i("[launcher] ViewModel non trovato"); return; }
+        if (vm == null) { XLog.i("[launcher] ViewModel non trovato"); Diag.mark("auto-launch", false); return; }
 
         int n = 0;
         for (Method m : vm.getDeclaredMethods()) {
@@ -62,7 +65,8 @@ public final class LauncherHooks {
                 n++;
             } catch (Throwable t) { XLog.e("[launcher] hook fallito", t); }
         }
-        XLog.i("[launcher] hook su " + n + " varianti di applyConnectionChoice; launcher=" + LAUNCHER_PACKAGE);
+        XLog.i("[launcher] hook su " + n + " varianti di applyConnectionChoice");
+        Diag.mark("auto-launch", n > 0);
     }
 
     private static void onDesktopChosen() {
@@ -70,17 +74,23 @@ public final class LauncherHooks {
         if (now - lastTrigger < 10_000) return;   // applyConnectionChoice e' una suspend fun: chiamata 2 volte
         lastTrigger = now;
         launched = false;
-        XLog.i("[launcher] scelta Desktop: programmo l'avvio di " + LAUNCHER_PACKAGE);
-        Handler h = new Handler(Looper.getMainLooper());
-        for (final int ms : RETRY_MS) {
-            h.postDelayed(new Runnable() {
-                @Override public void run() {
-                    if (launched) return;
-                    try { if (tryLaunch()) launched = true; }
-                    catch (Throwable t) { XLog.e("[launcher] avvio fallito", t); }
+        final Handler h = new Handler(Looper.getMainLooper());
+        // le impostazioni si leggono fuori dal percorso della finestra
+        h.post(new Runnable() {
+            @Override public void run() {
+                if (!Prefs.autoLaunch()) { XLog.i("[launcher] avvio del dock disattivato nelle impostazioni"); return; }
+                XLog.i("[launcher] scelta Desktop: programmo l'avvio di " + Prefs.launcherPkg());
+                for (final int ms : RETRY_MS) {
+                    h.postDelayed(new Runnable() {
+                        @Override public void run() {
+                            if (launched) return;
+                            try { if (tryLaunch()) launched = true; }
+                            catch (Throwable t) { XLog.e("[launcher] avvio fallito", t); }
+                        }
+                    }, ms);
                 }
-            }, ms);
-        }
+            }
+        });
     }
 
     /** @return true se ha lanciato (o se non ha senso riprovare). */
@@ -92,46 +102,51 @@ public final class LauncherHooks {
         int target = externalDisplayId(ctx);
         if (target < 0) { XLog.i("[launcher] display esterno non ancora attivo, riprovo"); return false; }
 
-        Intent i = desktopIntent(ctx);
-        if (i == null) { XLog.i("[launcher] " + LAUNCHER_PACKAGE + " non installato"); return true; }
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        String pkg = Prefs.launcherPkg();
+        Intent i = desktopIntent(ctx, pkg);
+        if (i == null) { XLog.i("[launcher] " + pkg + " non installato"); return true; }
+        startOnDisplay(ctx, i, target);
+        XLog.i("[launcher] avvio di " + i.getComponent().flattenToShortString() + " richiesto sul display " + target);
+        return true;
+    }
 
+    /**
+     * Activity "desktop" del dock: prima SECONDARY_HOME (fatta apposta per i
+     * display secondari, es. SmartDock SecondaryLauncherActivity), poi HOME, e
+     * solo come ultima scelta il normale punto d'ingresso dell'app.
+     * @return null se il pacchetto non e' installato.
+     */
+    static Intent desktopIntent(Context ctx, String pkg) {
+        PackageManager pm = ctx.getPackageManager();
+        for (String cat : new String[] {
+                "android.intent.category.SECONDARY_HOME", Intent.CATEGORY_HOME }) {
+            Intent q = new Intent(Intent.ACTION_MAIN).addCategory(cat).setPackage(pkg);
+            List<ResolveInfo> r = pm.queryIntentActivities(q, 0);
+            if (r != null && !r.isEmpty()) {
+                ActivityInfo ai = r.get(0).activityInfo;
+                Intent i = new Intent(Intent.ACTION_MAIN).addCategory(cat);
+                i.setClassName(ai.packageName, ai.name);
+                return i;
+            }
+        }
+        return pm.getLaunchIntentForPackage(pkg);
+    }
+
+    /** Avvia l'activity sul display indicato, per l'utente corrente. */
+    static void startOnDisplay(Context ctx, Intent i, int displayId) {
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         ActivityOptions opts = ActivityOptions.makeBasic();
-        opts.setLaunchDisplayId(target);
-        XLog.i("[launcher] avvio " + i.getComponent() + " sul display " + target);
+        opts.setLaunchDisplayId(displayId);
         try {
-            // SystemUI su HyperOS gira come processo di sistema: va indicato l'utente,
-            // altrimenti il lancio puo' finire nell'utente/display sbagliato.
-            Object current = XposedHelpers.getStaticObjectField(android.os.UserHandle.class, "CURRENT");
+            // SystemUI su HyperOS (e ovviamente system_server) gira come utente di
+            // sistema: va indicato l'utente, altrimenti il lancio puo' finire
+            // nell'utente/display sbagliato.
+            Object current = XposedHelpers.getStaticObjectField(UserHandle.class, "CURRENT");
             XposedHelpers.callMethod(ctx, "startActivityAsUser", i, opts.toBundle(), current);
         } catch (Throwable t) {
             XLog.e("[launcher] startActivityAsUser fallito, ripiego su startActivity", t);
             ctx.startActivity(i, opts.toBundle());
         }
-        XLog.i("[launcher] " + LAUNCHER_PACKAGE + " avviato sul display " + target);
-        return true;
-    }
-
-    /**
-     * Activity "desktop" del launcher: prima SECONDARY_HOME (fatta apposta per i
-     * display secondari, es. SmartDock SecondaryLauncherActivity), poi HOME, e
-     * solo come ultima scelta il normale punto d'ingresso dell'app.
-     */
-    private static Intent desktopIntent(Context ctx) {
-        android.content.pm.PackageManager pm = ctx.getPackageManager();
-        for (String cat : new String[] {
-                "android.intent.category.SECONDARY_HOME", Intent.CATEGORY_HOME }) {
-            Intent q = new Intent(Intent.ACTION_MAIN).addCategory(cat).setPackage(LAUNCHER_PACKAGE);
-            java.util.List<android.content.pm.ResolveInfo> r = pm.queryIntentActivities(q, 0);
-            if (r != null && !r.isEmpty()) {
-                android.content.pm.ActivityInfo ai = r.get(0).activityInfo;
-                Intent i = new Intent(Intent.ACTION_MAIN).addCategory(cat);
-                i.setClassName(ai.packageName, ai.name);
-                XLog.i("[launcher] activity desktop (" + cat.substring(cat.lastIndexOf('.') + 1) + "): " + ai.name);
-                return i;
-            }
-        }
-        return pm.getLaunchIntentForPackage(LAUNCHER_PACKAGE);
     }
 
     private static int externalDisplayId(Context ctx) {

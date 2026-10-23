@@ -17,9 +17,13 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
  * Tiene traccia (in system_server) della presenza di un display ESTERNO
  * fisico, agganciando creazione e rimozione dei DisplayContent del WindowManager.
  *
- * Serve come interruttore di sicurezza: le forzature "desktop supportato" sul
- * framework valgono solo mentre un monitor e' collegato, cosi' l'avvio del
- * telefono (senza monitor) resta identico e non rischia bootloop.
+ * E' l'interruttore di tutte le funzioni "di sessione" (schermo del telefono,
+ * servizio del dock, densita', tieni acceso, scorciatoie): valgono solo mentre
+ * un monitor e' collegato, cosi' l'avvio del telefono senza monitor resta
+ * identico a quello di serie.
+ *
+ * Gli hook girano con il lock globale del WindowManager: qui si aggiornano solo
+ * i campi e si avvisano i gestori, che fanno il lavoro vero su thread propri.
  */
 public final class ExternalDisplayGate {
 
@@ -31,21 +35,23 @@ public final class ExternalDisplayGate {
 
     public static void hook(LoadPackageParam lp) {
         Class<?> dc = XposedHelpers.findClassIfExists("com.android.server.wm.DisplayContent", lp.classLoader);
-        if (dc == null) { XLog.i("[gate] DisplayContent non trovata"); return; }
+        if (dc == null) { XLog.i("[gate] DisplayContent non trovata"); Diag.mark("gate", false); return; }
         PhoneScreen.init(lp.classLoader);
         DockAccessibility.scheduleBootCheck();
 
-        XposedBridge.hookAllConstructors(dc, new XC_MethodHook() {
+        int ctors = XposedBridge.hookAllConstructors(dc, new XC_MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (isExternal(p.thisObject)) {
+                    int id = displayIdOf(p.thisObject);
                     present = true;
-                    externalId = displayIdOf(p.thisObject);
-                    XLog.i("[gate] display esterno COLLEGATO (id " + displayIdOf(p.thisObject) + ")");
+                    externalId = id;
+                    XLog.i("[gate] display esterno COLLEGATO (id " + id + ")");
                     DockAccessibility.onExternalAdded();
                     PhoneScreen.onExternalAdded();
+                    DesktopSession.onExternalAdded(id);
                 }
             }
-        });
+        }).size();
 
         int n = 0;
         for (Method m : dc.getDeclaredMethods()) {
@@ -59,13 +65,15 @@ public final class ExternalDisplayGate {
                             XLog.i("[gate] display esterno RIMOSSO");
                             PhoneScreen.onExternalRemoved();
                             DockAccessibility.onExternalRemoved();
+                            DesktopSession.onExternalRemoved();
                         }
                     }
                 });
                 n++;
             } catch (Throwable ignored) {}
         }
-        XLog.i("[gate] hook installati (costruttori + " + n + " metodi di rimozione)");
+        XLog.i("[gate] hook installati (" + ctors + " costruttori + " + n + " metodi di rimozione)");
+        Diag.mark("gate", ctors > 0 && n > 0);
     }
 
     private static boolean isExternal(Object displayContent) {

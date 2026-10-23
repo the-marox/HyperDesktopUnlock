@@ -40,7 +40,6 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
  */
 public final class AltTabHooks {
 
-    static final boolean ENABLED = true;
     private static final int MAX_TASKS = 50;
 
     static ClassLoader cl;
@@ -55,11 +54,11 @@ public final class AltTabHooks {
     private static volatile boolean tabConsumed = false;
 
     public static void hook(LoadPackageParam lp) {
-        if (!ENABLED) return;
         cl = lp.classLoader;
         int n = hookIn("com.android.server.input.InputManagerService");
         if (n == 0) n = hookIn("com.android.server.policy.PhoneWindowManager");
         XLog.i("[alttab] hook su " + n + " varianti di interceptKeyBeforeQueueing");
+        Diag.mark("keys", n > 0);
     }
 
     private static int hookIn(String cls) {
@@ -82,9 +81,13 @@ public final class AltTabHooks {
         return n;
     }
 
-    /** @return true se l'evento va consumato. Gira sul thread di input: deve essere veloce. */
+    /**
+     * @return true se l'evento va consumato. Gira sul thread di input: deve essere veloce.
+     * Le impostazioni si consultano solo sulla pressione che avvierebbe un'azione;
+     * i rilasci dei tasti gia' consumati vengono consumati comunque.
+     */
     private static boolean onKey(KeyEvent ev) {
-        if (DesktopShortcuts.onKey(ev)) return true;   // Stamp, Alt+F4, Win+P, Win+Maiusc+frecce/S
+        if (DesktopShortcuts.onKey(ev)) return true;   // Stamp, Alt+F4, Win+D/P, Win+Maiusc+frecce/S
         int code = ev.getKeyCode();
         int action = ev.getAction();
 
@@ -100,6 +103,7 @@ public final class AltTabHooks {
         }
         if (!ev.isAltPressed() || ev.isCtrlPressed() || ev.isMetaPressed()) return false;
         if (!ExternalDisplayGate.present) return false;
+        if (!tabConsumed && !Prefs.shortcuts()) return false;   // tasto tenuto premuto: gia' deciso
 
         final int focused = topFocusedDisplayId();
         if (focused <= 0) return false;   // focus sul telefono (o sconosciuto): lascia fare al sistema
@@ -133,27 +137,41 @@ public final class AltTabHooks {
         } catch (Throwable t) { XLog.e("[alttab] step fallito", t); }
     }
 
-    /** Task sul display indicato, dal piu' recente; esclusi home/recenti e il launcher del dock. */
+    /** Task sul display indicato, dal piu' recente; esclusi home/recenti e il dock. */
     static List<Integer> tasksOn(int displayId) {
         List<Integer> out = new ArrayList<>();
-        Context ctx = systemContext();
-        if (ctx == null) return out;
-        ActivityManager am = ctx.getSystemService(ActivityManager.class);
-        @SuppressWarnings("deprecation")
-        List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(MAX_TASKS);
-        if (tasks == null) return out;
-        for (ActivityManager.RunningTaskInfo t : tasks) {
+        String dock = Prefs.launcherPkg();
+        for (ActivityManager.RunningTaskInfo t : runningTasks()) {
             if (intField(t, "displayId", -1) != displayId) continue;
             int type = activityType(t);
             if (type == 2 /* HOME */ || type == 3 /* RECENTS */) continue;
             ComponentName top = t.topActivity != null ? t.topActivity : t.baseActivity;
-            if (top != null && LauncherHooks.LAUNCHER_PACKAGE.equals(top.getPackageName())) continue;
+            if (top != null && dock.equals(top.getPackageName())) continue;
             out.add(t.taskId);
         }
         return out;
     }
 
-    private static void moveToFront(int taskId) {
+    /** Task del desktop del dock (activity indicata) sul display, -1 se non c'e'. */
+    static int taskOf(int displayId, ComponentName activity) {
+        if (activity == null) return -1;
+        for (ActivityManager.RunningTaskInfo t : runningTasks()) {
+            if (intField(t, "displayId", -1) != displayId) continue;
+            if (activity.equals(t.baseActivity) || activity.equals(t.topActivity)) return t.taskId;
+        }
+        return -1;
+    }
+
+    private static List<ActivityManager.RunningTaskInfo> runningTasks() {
+        Context ctx = systemContext();
+        if (ctx == null) return new ArrayList<>();
+        ActivityManager am = ctx.getSystemService(ActivityManager.class);
+        @SuppressWarnings("deprecation")
+        List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(MAX_TASKS);
+        return tasks != null ? tasks : new ArrayList<ActivityManager.RunningTaskInfo>();
+    }
+
+    static void moveToFront(int taskId) {
         Context ctx = systemContext();
         if (ctx == null) return;
         ActivityManager am = ctx.getSystemService(ActivityManager.class);

@@ -13,36 +13,53 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
  *
  * LSPosed carica questo metodo in OGNI processo che rientra nello "scope"
  * del modulo. Qui smistiamo in base al processo:
- *   - "android"             = system_server (il framework)
- *   - "com.android.systemui = SystemUI, dove gira WMShell (la logica desktop)
- *   - "com.android.settings = l'app Impostazioni (dove avviene il crash)
+ *   - "android"              = system_server (il framework)
+ *   - "com.android.systemui" = SystemUI (finestra di collegamento, avvio del dock)
+ *   - "com.android.settings" = l'app Impostazioni (pagina Display esterni)
+ * A fine caricamento ogni processo stampa una riga [diag] con gli hook agganciati.
  *
  * Lo scope va impostato in LSPosed su: System Framework, System UI, Impostazioni.
  */
 public class MainHook implements IXposedHookLoadPackage {
 
     @Override
-    public void handleLoadPackage(LoadPackageParam lpparam) {
-        switch (lpparam.packageName) {
+    public void handleLoadPackage(final LoadPackageParam lp) {
+        switch (lp.packageName) {
             case "android":
-                ExternalDisplayGate.hook(lpparam);
-                DesktopModeHooks.hook(lpparam, "system_server");
-                SettingsTraceHooks.hook(lpparam, "system_server");
-                MirrorPolicyHooks.hook(lpparam);
-                WmHooks.hook(lpparam);
-                AltTabHooks.hook(lpparam);
+                safe("gate",          () -> ExternalDisplayGate.hook(lp));
+                safe("desktop-flags", () -> DesktopModeHooks.hook(lp, "system_server"));
+                safe("mirror-guard",  () -> SettingsGuardHooks.hook(lp));
+                safe("mirror-policy", () -> MirrorPolicyHooks.hook(lp));
+                safe("keys",          () -> AltTabHooks.hook(lp));
+                Prefs.warmUp();
+                Diag.summary("system_server");
                 break;
             case "com.android.systemui":
-                DesktopModeHooks.hook(lpparam, "systemui");
-                ConnectDialogHooks.hook(lpparam);
-                LauncherHooks.hook(lpparam);
-                SettingsTraceHooks.hook(lpparam, "systemui");
+                safe("desktop-flags", () -> DesktopModeHooks.hook(lp, "systemui"));
+                safe("dialog",        () -> ConnectDialogHooks.hook(lp));
+                safe("auto-launch",   () -> LauncherHooks.hook(lp));
+                Prefs.warmUp();
+                Diag.summary(lp.processName);
                 break;
             case "com.android.settings":
-                SettingsHooks.hook(lpparam);
+                safe("topology-fix",  () -> SettingsHooks.hook(lp));
+                Diag.summary(lp.processName);
                 break;
             default:
                 // ignorato
+        }
+    }
+
+    /**
+     * Un hook che fallisce (es. classe cambiata da un aggiornamento di HyperOS)
+     * non deve impedire l'installazione degli altri ne' la riga [diag].
+     */
+    private static void safe(String name, Runnable install) {
+        try {
+            install.run();
+        } catch (Throwable t) {
+            XLog.e("[main] installazione di '" + name + "' fallita", t);
+            Diag.mark(name, false);
         }
     }
 }
