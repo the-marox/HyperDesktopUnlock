@@ -26,6 +26,9 @@ public final class ExternalDisplayGate {
     /** true mentre almeno un display esterno fisico e' collegato. */
     public static volatile boolean present = false;
 
+    /** id logico del display esterno in modalita' desktop, -1 se assente. */
+    public static volatile int externalId = -1;
+
     public static void hook(LoadPackageParam lp) {
         Class<?> dc = XposedHelpers.findClassIfExists("com.android.server.wm.DisplayContent", lp.classLoader);
         if (dc == null) { XLog.i("[gate] DisplayContent non trovata"); return; }
@@ -36,6 +39,7 @@ public final class ExternalDisplayGate {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (isExternal(p.thisObject)) {
                     present = true;
+                    externalId = displayIdOf(p.thisObject);
                     XLog.i("[gate] display esterno COLLEGATO (id " + displayIdOf(p.thisObject) + ")");
                     DockAccessibility.onExternalAdded();
                     PhoneScreen.onExternalAdded();
@@ -51,6 +55,7 @@ public final class ExternalDisplayGate {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
                         if (isExternal(p.thisObject) && present) {
                             present = false;
+                            externalId = -1;
                             XLog.i("[gate] display esterno RIMOSSO");
                             PhoneScreen.onExternalRemoved();
                             DockAccessibility.onExternalRemoved();

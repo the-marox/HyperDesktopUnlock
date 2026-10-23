@@ -55,6 +55,7 @@ places. The module hooks each one (see `app/src/main/java/.../`):
 | `PhoneScreen` (+ `ExternalDisplayGate`) | system_server | Pressing power puts the whole device to sleep, monitor included | ~2 s after an external **physical** display becomes a desktop display, turns off only the phone's panel (`SurfaceControl.setDisplayPowerMode(internalToken, OFF)`, same technique as scrcpy `--turn-screen-off`); waits for unlock if the phone is locked; turns it back on when the cable is unplugged. Once per connection: lock + wake the phone to get its screen back. Virtual displays (screen recording, cast) are ignored. Toggle: `PhoneScreen.TURN_OFF_ON_DESKTOP` |
 | `DockAccessibility` | system_server | Enabled accessibility services always start at boot, so the dock would also show up on the phone | Enables the dock's accessibility service (found dynamically in `LAUNCHER_PACKAGE`, e.g. SmartDock `DockService`) when the desktop starts, disables it when the cable is unplugged, and after boot if no monitor is attached. Also re-enables it if HyperOS turned it off. Toggle: `DockAccessibility.MANAGE` |
 | `AltTabHooks` | system_server | Alt+Tab is handled by the HyperOS launcher, which lives only on the phone: on the monitor it does nothing | Intercepts Alt+Tab at `InputManagerService.interceptKeyBeforeQueueing` **only** while a desktop display is active and has focus. Alt+Tab switches to the previous app on the monitor; keep Alt held and press Tab again to go further back; Alt+Shift+Tab goes the other way. No preview overlay. On the phone, Alt+Tab is untouched. Toggle: `AltTabHooks.ENABLED` |
+| `DesktopShortcuts` | system_server | HyperOS screenshots only capture the phone display; no way to move apps between displays from the keyboard | More keyboard shortcuts at the same input hook as Alt+Tab, only while a desktop display is active (see *Keyboard shortcuts*). Monitor screenshots use `DisplayManagerInternal.systemScreenshot(displayId)` and are saved through MediaStore to `Pictures/Screenshots`. When a Win combination is consumed, the Win key-up is consumed too, so the system/dock does not treat it as "Win pressed alone". Toggle: `DesktopShortcuts.ENABLED` |
 | `SettingsHooks` | Settings | The hidden AOSP *External displays* page crashes in `DisplayTopologyPreferenceController` (lateinit `paneContent` never set by the miuix adapter) | Marks that controller unavailable so the page renders |
 
 Optional, off by default:
@@ -104,6 +105,16 @@ All logs go through `XposedBridge.log` with the prefix `HyperDesktop:` —
    press Tab repeatedly to go further back, Alt+Shift+Tab to go the other way.
 6. **Back** on the monitor: mouse side button, `Esc` on a keyboard, the
    launcher's Back button, or `input -d 2 keyevent KEYCODE_BACK`.
+
+### Keyboard shortcuts (physical keyboard, desktop mode only)
+
+| Keys | Action |
+|---|---|
+| **Alt+Tab** | Previous app on the monitor; hold Alt and press Tab again to go further back, **Alt+Shift+Tab** for the other direction |
+| **Print Screen** or **Win+Shift+S** | Screenshot of the monitor → `Pictures/Screenshots` (with focus on the phone: normal HyperOS screenshot) |
+| **Win+Shift+Arrow** | Move the foreground app monitor → phone, or phone → monitor |
+| **Alt+F4** | Close the foreground app on the monitor |
+| **Win+P** | Turn the phone screen on/off |
 
 To go back to mirroring just pick *Mirroring* in the dialog (or clear the
 saved choice in Settings → *External displays*, reachable via

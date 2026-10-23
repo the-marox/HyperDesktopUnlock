@@ -43,7 +43,7 @@ public final class AltTabHooks {
     static final boolean ENABLED = true;
     private static final int MAX_TASKS = 50;
 
-    private static ClassLoader cl;
+    static ClassLoader cl;
     private static Object wmInternal;
     private static Handler handler;
 
@@ -84,6 +84,7 @@ public final class AltTabHooks {
 
     /** @return true se l'evento va consumato. Gira sul thread di input: deve essere veloce. */
     private static boolean onKey(KeyEvent ev) {
+        if (DesktopShortcuts.onKey(ev)) return true;   // Stamp, Alt+F4, Win+P, Win+Maiusc+frecce/S
         int code = ev.getKeyCode();
         int action = ev.getAction();
 
@@ -133,7 +134,7 @@ public final class AltTabHooks {
     }
 
     /** Task sul display indicato, dal piu' recente; esclusi home/recenti e il launcher del dock. */
-    private static List<Integer> tasksOn(int displayId) {
+    static List<Integer> tasksOn(int displayId) {
         List<Integer> out = new ArrayList<>();
         Context ctx = systemContext();
         if (ctx == null) return out;
@@ -162,7 +163,7 @@ public final class AltTabHooks {
     // ------------------------------------------------------------------
     // utilita'
     // ------------------------------------------------------------------
-    private static int topFocusedDisplayId() {
+    static int topFocusedDisplayId() {
         try {
             if (wmInternal == null) {
                 Class<?> ls  = XposedHelpers.findClass("com.android.server.LocalServices", cl);
@@ -187,7 +188,7 @@ public final class AltTabHooks {
         try { return XposedHelpers.getIntField(o, f); } catch (Throwable t) { return def; }
     }
 
-    private static synchronized Handler handler() {
+    static synchronized Handler handler() {
         if (handler == null) {
             HandlerThread t = new HandlerThread("HyperDesktop-alttab");
             t.start();
@@ -196,7 +197,7 @@ public final class AltTabHooks {
         return handler;
     }
 
-    private static Context systemContext() {
+    static Context systemContext() {
         try {
             Object at = XposedHelpers.callStaticMethod(
                 XposedHelpers.findClass("android.app.ActivityThread", null), "currentActivityThread");

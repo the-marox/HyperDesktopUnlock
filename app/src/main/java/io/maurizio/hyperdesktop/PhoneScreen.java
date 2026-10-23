@@ -47,6 +47,8 @@ public final class PhoneScreen {
     /** Chiamato da ExternalDisplayGate quando compare un display esterno fisico. */
     static void onExternalAdded() {
         if (!TURN_OFF_ON_DESKTOP) return;
+        Context c0 = systemContext();
+        if (c0 != null) registerReceiver(c0);
         handler().postDelayed(new Runnable() {
             @Override public void run() { tryTurnOff("collegamento"); }
         }, DELAY_MS);
@@ -76,7 +78,7 @@ public final class PhoneScreen {
         KeyguardManager km = ctx.getSystemService(KeyguardManager.class);
         if (km != null && km.isKeyguardLocked()) {
             pendingUnlock = true;
-            registerUnlockReceiver(ctx);
+            registerReceiver(ctx);
             XLog.i("[screen] telefono bloccato: spengo il pannello dopo lo sblocco");
             return;
         }
@@ -86,11 +88,17 @@ public final class PhoneScreen {
         }
     }
 
-    private static void registerUnlockReceiver(Context ctx) {
+    /** Sblocco (per lo spegnimento rimandato) e accensione del pannello da parte del sistema. */
+    private static void registerReceiver(Context ctx) {
         if (receiverRegistered) return;
         try {
             BroadcastReceiver r = new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent i) {
+                    if (Intent.ACTION_SCREEN_ON.equals(i.getAction())) {
+                        // il sistema ha riacceso il pannello (risveglio): il nostro stato non vale piu'
+                        turnedOff = false;
+                        return;
+                    }
                     if (pendingUnlock) {
                         pendingUnlock = false;
                         handler().postDelayed(new Runnable() {
@@ -99,10 +107,25 @@ public final class PhoneScreen {
                     }
                 }
             };
-            ctx.registerReceiver(r, new IntentFilter(Intent.ACTION_USER_PRESENT),
-                    null, handler(), Context.RECEIVER_EXPORTED);
+            IntentFilter f = new IntentFilter(Intent.ACTION_USER_PRESENT);
+            f.addAction(Intent.ACTION_SCREEN_ON);
+            ctx.registerReceiver(r, f, null, handler(), Context.RECEIVER_EXPORTED);
             receiverRegistered = true;
         } catch (Throwable t) { XLog.e("[screen] registerReceiver fallito", t); }
+    }
+
+    /** Win+P: accende/spegne il pannello del telefono mentre il monitor e' in desktop. */
+    static void toggle() {
+        handler().post(new Runnable() {
+            @Override public void run() {
+                if (!ExternalDisplayGate.present || !isInteractive()) return;
+                if (turnedOff) {
+                    if (setInternalPower(POWER_MODE_NORMAL)) { turnedOff = false; XLog.i("[screen] pannello telefono RIACCESO (Win+P)"); }
+                } else {
+                    if (setInternalPower(POWER_MODE_OFF))    { turnedOff = true;  XLog.i("[screen] pannello telefono SPENTO (Win+P)"); }
+                }
+            }
+        });
     }
 
     // ------------------------------------------------------------------
