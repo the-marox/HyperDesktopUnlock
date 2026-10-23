@@ -30,12 +30,14 @@ public final class ExternalDisplayGate {
         Class<?> dc = XposedHelpers.findClassIfExists("com.android.server.wm.DisplayContent", lp.classLoader);
         if (dc == null) { XLog.i("[gate] DisplayContent non trovata"); return; }
         PhoneScreen.init(lp.classLoader);
+        DockAccessibility.scheduleBootCheck();
 
         XposedBridge.hookAllConstructors(dc, new XC_MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (isExternal(p.thisObject)) {
                     present = true;
                     XLog.i("[gate] display esterno COLLEGATO (id " + displayIdOf(p.thisObject) + ")");
+                    DockAccessibility.onExternalAdded();
                     PhoneScreen.onExternalAdded();
                 }
             }
@@ -51,6 +53,7 @@ public final class ExternalDisplayGate {
                             present = false;
                             XLog.i("[gate] display esterno RIMOSSO");
                             PhoneScreen.onExternalRemoved();
+                            DockAccessibility.onExternalRemoved();
                         }
                     }
                 });
