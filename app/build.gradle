@@ -1,0 +1,52 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Firma di release: legge keystore.properties (NON committato) se presente,
+// altrimenti ripiega sulla chiave di debug.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace 'io.maurizio.hyperdesktop'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.maurizio.hyperdesktop'
+        minSdk 31
+        targetSdk 35
+        versionCode 100
+        versionName '1.0.0'
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // API Xposed: solo in compilazione, fornita a runtime da LSPosed.
+    compileOnly 'de.robv.android.xposed:api:82'
+}

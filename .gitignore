@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx/
+
+# Chiave di firma e credenziali: MAI committare
+keystore.properties
+*.jks
+*.keystore

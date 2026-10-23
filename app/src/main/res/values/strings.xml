@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HyperDesktop Unlock</string>
+    <string name="xposed_desc">Turns an external monitor into a separate display (no mirroring) on Xiaomi HyperOS 4 / Android 17: restores the hidden Desktop button and neutralises the mirroring enforcer.</string>
+
+    <!-- Scope suggerito al momento dell'attivazione in LSPosed -->
+    <string-array name="xposed_scope">
+        <item>android</item>
+        <item>com.android.systemui</item>
+        <item>com.android.settings</item>
+    </string-array>
+</resources>

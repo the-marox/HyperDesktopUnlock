@@ -1,0 +1,18 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+        // Repository dell'API Xposed classica (de.robv.android.xposed:api:82)
+        maven { url 'https://api.xposed.info/' }
+    }
+}
+rootProject.name = "HyperDesktopUnlock"
+include ':app'
