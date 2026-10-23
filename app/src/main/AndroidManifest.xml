@@ -19,5 +19,14 @@
         <meta-data
             android:name="xposedscope"
             android:resource="@array/xposed_scope" />
+
+        <!-- Salva gli screenshot del monitor per conto di system_server.
+             INTERACT_ACROSS_USERS_FULL: le app di terze parti non possono
+             ottenerlo, il sistema lo supera sempre. -->
+        <provider
+            android:name=".ShotProvider"
+            android:authorities="io.maurizio.hyperdesktop.shots"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     </application>
 </manifest>

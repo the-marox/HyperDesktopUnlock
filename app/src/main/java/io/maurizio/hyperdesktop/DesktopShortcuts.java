@@ -6,14 +6,11 @@
 package io.maurizio.hyperdesktop;
 
 import android.app.ActivityOptions;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.hardware.display.DisplayManager;
 import android.net.Uri;
-import android.os.Environment;
-import android.provider.MediaStore;
+import android.os.ParcelFileDescriptor;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.widget.Toast;
@@ -160,24 +157,20 @@ final class DesktopShortcuts {
         try { ((android.hardware.HardwareBuffer) XposedHelpers.callMethod(buf, "getHardwareBuffer")).close(); }
         catch (Throwable ignored) {}
 
+        // MediaProvider non apre file in scrittura al processo di sistema: il PNG
+        // lo salva l'app del modulo (ShotProvider), a cui lo passiamo via pipe.
         String name = "Screenshot_" + new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date()) + "_monitor.png";
-        ContentResolver cr = ctx.getContentResolver();
-        ContentValues v = new ContentValues();
-        v.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
-        v.put(MediaStore.MediaColumns.MIME_TYPE, "image/png");
-        v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Screenshots");
-        v.put(MediaStore.MediaColumns.IS_PENDING, 1);
-        Uri uri = cr.insert(MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), v);
-        if (uri == null) { XLog.i("[keys] screenshot: MediaStore ha rifiutato l'inserimento"); return; }
-        try (OutputStream os = cr.openOutputStream(uri)) {
+        Uri target = Uri.parse("content://" + SHOT_AUTHORITY + "/" + name);
+        ParcelFileDescriptor pfd = ctx.getContentResolver().openFileDescriptor(target, "w");
+        if (pfd == null) { XLog.i("[keys] screenshot: provider del modulo non raggiungibile"); return; }
+        try (OutputStream os = new ParcelFileDescriptor.AutoCloseOutputStream(pfd)) {
             bmp.compress(Bitmap.CompressFormat.PNG, 100, os);
         }
-        v.clear();
-        v.put(MediaStore.MediaColumns.IS_PENDING, 0);
-        cr.update(uri, v, null, null);
-        XLog.i("[keys] screenshot del display " + displayId + " salvato: Pictures/Screenshots/" + name);
+        XLog.i("[keys] screenshot del display " + displayId + " inviato al modulo: " + name);
         toast(ctx, displayId, "Screenshot saved to Pictures/Screenshots");
     }
+
+    private static final String SHOT_AUTHORITY = "io.maurizio.hyperdesktop.shots";
 
     private static void toast(Context ctx, int displayId, String msg) {
         try {
