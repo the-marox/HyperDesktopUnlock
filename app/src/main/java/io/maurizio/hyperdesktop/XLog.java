@@ -5,23 +5,27 @@
  */
 package io.maurizio.hyperdesktop;
 
+import android.util.Log;
+
 import de.robv.android.xposed.XposedBridge;
 
 /**
- * Logger minimale. Tutto finisce nel log di Xposed, leggibile con:
- *   adb logcat -s LSPosed-Bridge HyperDesktop
- * oppure dal gestore LSPosed -> Log.
+ * Logger minimale. Ogni riga va in due posti:
+ *  - logcat, tag "HyperDesktop" (sempre, indipendente dalle impostazioni di LSPosed):
+ *      adb logcat -s HyperDesktop
+ *  - il registro dei moduli di LSPosed (XposedBridge.log).
  */
 public final class XLog {
     public static final String TAG = "HyperDesktop";
 
     public static void i(String m) {
-        XposedBridge.log(TAG + ": " + m);
+        try { Log.i(TAG, m); } catch (Throwable ignored) {}
+        try { XposedBridge.log(TAG + ": " + m); } catch (Throwable ignored) {}
     }
 
     public static void e(String m, Throwable t) {
-        XposedBridge.log(TAG + ": " + m);
-        XposedBridge.log(t);
+        try { Log.e(TAG, m, t); } catch (Throwable ignored) {}
+        try { XposedBridge.log(TAG + ": " + m); XposedBridge.log(t); } catch (Throwable ignored) {}
     }
 
     private XLog() {}

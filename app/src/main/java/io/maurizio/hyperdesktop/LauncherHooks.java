@@ -98,7 +98,16 @@ public final class LauncherHooks {
 
         ActivityOptions opts = ActivityOptions.makeBasic();
         opts.setLaunchDisplayId(target);
-        ctx.startActivity(i, opts.toBundle());
+        XLog.i("[launcher] avvio " + i.getComponent() + " sul display " + target);
+        try {
+            // SystemUI su HyperOS gira come processo di sistema: va indicato l'utente,
+            // altrimenti il lancio puo' finire nell'utente/display sbagliato.
+            Object current = XposedHelpers.getStaticObjectField(android.os.UserHandle.class, "CURRENT");
+            XposedHelpers.callMethod(ctx, "startActivityAsUser", i, opts.toBundle(), current);
+        } catch (Throwable t) {
+            XLog.e("[launcher] startActivityAsUser fallito, ripiego su startActivity", t);
+            ctx.startActivity(i, opts.toBundle());
+        }
         XLog.i("[launcher] " + LAUNCHER_PACKAGE + " avviato sul display " + target);
         return true;
     }
