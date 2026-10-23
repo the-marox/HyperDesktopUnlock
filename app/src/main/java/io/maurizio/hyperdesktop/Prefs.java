@@ -37,6 +37,7 @@ final class Prefs {
     static final String K_MANAGE_A11Y    = "manage_accessibility";
     static final String K_PHONE_OFF      = "phone_screen_off";
     static final String K_SHORTCUTS      = "shortcuts";
+    static final String K_SWITCHER       = "switcher_preview";
     static final String K_DENSITY        = "monitor_density";
     static final String K_KEEP_AWAKE     = "keep_awake";
 
@@ -45,6 +46,7 @@ final class Prefs {
     static final boolean D_MANAGE_A11Y   = true;
     static final boolean D_PHONE_OFF     = true;
     static final boolean D_SHORTCUTS     = true;
+    static final boolean D_SWITCHER      = true;
     static final boolean D_KEEP_AWAKE    = false;
 
     /**
@@ -120,6 +122,7 @@ final class Prefs {
     static boolean manageA11y()    { return bool(K_MANAGE_A11Y, D_MANAGE_A11Y); }
     static boolean phoneOff()      { return bool(K_PHONE_OFF, D_PHONE_OFF); }
     static boolean shortcuts()     { return bool(K_SHORTCUTS, D_SHORTCUTS); }
+    static boolean switcherPreview() { return bool(K_SWITCHER, D_SWITCHER); }
     static boolean keepAwake()     { return bool(K_KEEP_AWAKE, D_KEEP_AWAKE); }
     static int     density()       { return integer(K_DENSITY, DENSITY_INVALID); }
 

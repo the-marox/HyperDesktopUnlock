@@ -8,6 +8,8 @@ package io.maurizio.hyperdesktop;
 import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.view.KeyEvent;
@@ -31,12 +33,17 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
  *   - il display con il focus non e' quello del telefono.
  * Altrimenti il tasto passa intatto.
  *
- * Comportamento, come lo scambio rapido di Windows (senza anteprime):
+ * Comportamento, come lo scambio rapido di Windows:
  *   Alt+Tab              -> app usata prima sul monitor
  *   Alt tenuto + Tab Tab -> risale le app aperte sul monitor, una alla volta
  *   Alt+Shift+Tab        -> nella direzione opposta
  * La lista viene "fotografata" alla prima pressione e resta fissa finche'
  * Alt non viene rilasciato.
+ *
+ * Con le anteprime attive (Prefs.switcherPreview, SwitcherOverlay) tenendo Alt
+ * compare la barra delle app e lo scambio avviene al rilascio di Alt; se la barra
+ * non si puo' mostrare (o l'opzione e' spenta) si ripiega sullo scambio immediato
+ * a ogni Tab, come prima.
  */
 public final class AltTabHooks {
 
@@ -46,9 +53,16 @@ public final class AltTabHooks {
     private static Object wmInternal;
     private static Handler handler;
 
+    /** Una app sul monitor: id del task + etichetta e icona per l'anteprima. */
+    static final class Task {
+        final int id; final CharSequence label; final Drawable icon;
+        Task(int id, CharSequence label, Drawable icon) { this.id = id; this.label = label; this.icon = icon; }
+    }
+
     // stato della sessione: toccato solo dal thread handler
-    private static List<Integer> session;
+    private static List<Task> session;
     private static int idx;
+    private static boolean previewing;
 
     // il DOWN di Tab che abbiamo consumato: consumiamo anche il relativo UP
     private static volatile boolean tabConsumed = false;
@@ -117,7 +131,19 @@ public final class AltTabHooks {
     }
 
     private static void endSession() {
-        handler().post(new Runnable() { @Override public void run() { session = null; } });
+        handler().post(new Runnable() { @Override public void run() { commitAndClear(); } });
+    }
+
+    /** Rilascio di Alt: con l'anteprima, l'app evidenziata va in primo piano ora. */
+    private static void commitAndClear() {
+        try {
+            if (previewing) {
+                SwitcherOverlay.hide();
+                if (session != null && idx >= 0 && idx < session.size()) moveToFront(session.get(idx).id);
+            }
+        } catch (Throwable t) { XLog.e("[alttab] commit fallito", t); }
+        session = null;
+        previewing = false;
     }
 
     // ------------------------------------------------------------------
@@ -126,20 +152,51 @@ public final class AltTabHooks {
     private static void step(int displayId, boolean back) {
         try {
             if (session == null) {
-                session = tasksOn(displayId);
-                idx = 0;
-                XLog.i("[alttab] nuova sessione sul display " + displayId + ": " + session.size() + " app");
+                session = detailedTasksOn(displayId);
+                int n = session.size();
+                XLog.i("[alttab] nuova sessione sul display " + displayId + ": " + n + " app");
+                if (n < 2) { idx = 0; previewing = false; return; }
+                idx = back ? n - 1 : 1;   // come Windows: parte dall'app precedente
+                previewing = Prefs.switcherPreview() && SwitcherOverlay.show(displayId, session, idx);
+                if (!previewing) moveToFront(session.get(idx).id);   // scambio immediato (anteprima off o non riuscita)
+                return;
             }
             int n = session.size();
             if (n < 2) return;
             idx = back ? (idx - 1 + n) % n : (idx + 1) % n;
-            moveToFront(session.get(idx));
+            if (previewing) SwitcherOverlay.updateSelection(idx);
+            else moveToFront(session.get(idx).id);
         } catch (Throwable t) { XLog.e("[alttab] step fallito", t); }
     }
 
     /** Task sul display indicato, dal piu' recente; esclusi home/recenti e il dock. */
     static List<Integer> tasksOn(int displayId) {
         List<Integer> out = new ArrayList<>();
+        for (ActivityManager.RunningTaskInfo t : switchableTasks(displayId)) out.add(t.taskId);
+        return out;
+    }
+
+    /** Come tasksOn, ma con etichetta e icona per l'anteprima (thread handler, non input). */
+    private static List<Task> detailedTasksOn(int displayId) {
+        List<Task> out = new ArrayList<>();
+        Context ctx = systemContext();
+        PackageManager pm = ctx != null ? ctx.getPackageManager() : null;
+        for (ActivityManager.RunningTaskInfo t : switchableTasks(displayId)) {
+            ComponentName top = t.topActivity != null ? t.topActivity : t.baseActivity;
+            CharSequence label = null; Drawable icon = null;
+            if (pm != null && top != null) {
+                try { icon = pm.getActivityIcon(top); } catch (Throwable ignored) {}
+                try { label = pm.getActivityInfo(top, 0).loadLabel(pm); } catch (Throwable ignored) {}
+                if (label == null) label = top.getPackageName();
+            }
+            out.add(new Task(t.taskId, label, icon));
+        }
+        return out;
+    }
+
+    /** Filtro comune: task scambiabili sul display, dal piu' recente. */
+    private static List<ActivityManager.RunningTaskInfo> switchableTasks(int displayId) {
+        List<ActivityManager.RunningTaskInfo> out = new ArrayList<>();
         String dock = Prefs.launcherPkg();
         for (ActivityManager.RunningTaskInfo t : runningTasks()) {
             if (intField(t, "displayId", -1) != displayId) continue;
@@ -147,7 +204,7 @@ public final class AltTabHooks {
             if (type == 2 /* HOME */ || type == 3 /* RECENTS */) continue;
             ComponentName top = t.topActivity != null ? t.topActivity : t.baseActivity;
             if (top != null && dock.equals(top.getPackageName())) continue;
-            out.add(t.taskId);
+            out.add(t);
         }
         return out;
     }
