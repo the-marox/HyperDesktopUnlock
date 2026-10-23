@@ -52,6 +52,7 @@ places. The module hooks each one (see `app/src/main/java/.../`):
 | `MirrorPolicyHooks` | system_server | `com.android.server.display.SecondaryDisplayPolicy` (not AOSP) forces mirroring from `DisplayManagerService$SettingsObserver.onChange` | `forceEnableMirrorBuiltInDisplaySettingIfNeeded()` and `enableMirrorBuiltInDisplaySetting()` become no-ops |
 | `DesktopModeHooks` | SystemUI + system_server | `DesktopModeStatus.isDesktopModeSupported/canEnterDesktopMode` are `false`; `DesktopModeFlags.getToggleOverride()` is `OVERRIDE_UNSET` (the "Enable desktop experience" developer option is hidden) | Forces them to `true` / `OVERRIDE_ON` in WMShell. `com.android.server.wm.DesktopModeHelper` is left alone (see above) |
 | `LauncherHooks` | SystemUI | HyperOS Home is single-display, so the monitor stays empty | When the Desktop choice is applied (`applyConnectionChoice(enableMirroring=false)`, dialog or *Don't ask again*), launches a launcher on the external display via `ActivityOptions.setLaunchDisplayId`. Default package: `cu.axel.smartdock` (SmartDock); change `LAUNCHER_PACKAGE` for Taskbar etc. |
+| `PhoneScreen` (+ `ExternalDisplayGate`) | system_server | Pressing power puts the whole device to sleep, monitor included | ~2 s after an external **physical** display becomes a desktop display, turns off only the phone's panel (`SurfaceControl.setDisplayPowerMode(internalToken, OFF)`, same technique as scrcpy `--turn-screen-off`); waits for unlock if the phone is locked; turns it back on when the cable is unplugged. Once per connection: lock + wake the phone to get its screen back. Virtual displays (screen recording, cast) are ignored. Toggle: `PhoneScreen.TURN_OFF_ON_DESKTOP` |
 | `SettingsHooks` | Settings | The hidden AOSP *External displays* page crashes in `DisplayTopologyPreferenceController` (lateinit `paneContent` never set by the miuix adapter) | Marks that controller unavailable so the page renders |
 
 Optional, off by default:
@@ -94,7 +95,10 @@ All logs go through `XposedBridge.log` with the prefix `HyperDesktop:` —
    am start --display 2 -n com.android.settings/.Settings
    ```
    (`dumpsys display | grep "Display [0-9]*:"` lists display ids.)
-4. **Back** on the monitor: mouse side button, `Esc` on a keyboard, the
+4. The phone's own screen turns off automatically a couple of seconds later (1.2.0+); the phone stays awake
+   and can be used as a touchpad by dock apps that support it. Need the phone screen? Press power twice
+   (lock + wake): it comes back and stays on until the next connection.
+5. **Back** on the monitor: mouse side button, `Esc` on a keyboard, the
    launcher's Back button, or `input -d 2 keyevent KEYCODE_BACK`.
 
 To go back to mirroring just pick *Mirroring* in the dialog (or clear the

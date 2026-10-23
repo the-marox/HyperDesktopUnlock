@@ -29,12 +29,14 @@ public final class ExternalDisplayGate {
     public static void hook(LoadPackageParam lp) {
         Class<?> dc = XposedHelpers.findClassIfExists("com.android.server.wm.DisplayContent", lp.classLoader);
         if (dc == null) { XLog.i("[gate] DisplayContent non trovata"); return; }
+        PhoneScreen.init(lp.classLoader);
 
         XposedBridge.hookAllConstructors(dc, new XC_MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (isExternal(p.thisObject)) {
                     present = true;
-                    XLog.i("[gate] display esterno COLLEGATO (id " + displayIdOf(p.thisObject) + "): gate desktop ON");
+                    XLog.i("[gate] display esterno COLLEGATO (id " + displayIdOf(p.thisObject) + ")");
+                    PhoneScreen.onExternalAdded();
                 }
             }
         });
@@ -45,9 +47,10 @@ public final class ExternalDisplayGate {
             try {
                 XposedBridge.hookMethod(m, new XC_MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
-                        if (isExternal(p.thisObject)) {
+                        if (isExternal(p.thisObject) && present) {
                             present = false;
-                            XLog.i("[gate] display esterno RIMOSSO: gate desktop OFF");
+                            XLog.i("[gate] display esterno RIMOSSO");
+                            PhoneScreen.onExternalRemoved();
                         }
                     }
                 });
@@ -65,7 +68,9 @@ public final class ExternalDisplayGate {
             // Display.getType() e TYPE_EXTERNAL (=2) sono @hide: via riflessione
             if (d != null) return ((Integer) XposedHelpers.callMethod(d, "getType")) == 2;
         } catch (Throwable ignored) {}
-        return id > 0;   // fallback: qualunque display non principale
+        // Nessun fallback: se il tipo non e' leggibile NON lo trattiamo come
+        // esterno (display virtuali di registrazione/cast non devono contare).
+        return false;
     }
 
     static int displayIdOf(Object displayContent) {
