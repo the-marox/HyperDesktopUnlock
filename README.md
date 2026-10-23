@@ -38,7 +38,6 @@ taskbar, app switching and Back/Home buttons on the monitor.
   phone-shaped "floating windows", so apps run full screen on the monitor.
   (The experimental code for both is in the project history, tag `v1.4.1`.)
 - A launcher on the monitor. HyperOS Home is single-display; use SmartDock/Taskbar.
-- A wallpaper on the monitor (it is black). Cosmetic.
 
 ---
 
