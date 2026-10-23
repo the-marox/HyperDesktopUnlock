@@ -143,6 +143,14 @@ final class DesktopSession {
             }
             int[] wh = parseSize(s);
             if (wh == null) { XLog.i("[session] risoluzione '" + s + "' non valida, ignorata"); return; }
+            // Sicurezza: una risoluzione con orientamento diverso dalla nativa
+            // (verticale su un pannello orizzontale) ruoterebbe/deformerebbe il
+            // monitor. La ignoriamo, cosi' una preferenza vecchia non lo capovolge.
+            if ((init.x >= init.y) != (wh[0] >= wh[1])) {
+                XLog.i("[session] risoluzione " + wh[0] + "x" + wh[1] + " con orientamento diverso dalla nativa ("
+                        + init.x + "x" + init.y + "), ignorata");
+                return;
+            }
             if (base.x == wh[0] && base.y == wh[1]) return;
             XposedHelpers.callMethod(wm, "setForcedDisplaySize", displayId, wh[0], wh[1]);
             XLog.i("[session] risoluzione del display " + displayId + ": " + base.x + "x" + base.y + " -> " + wh[0] + "x" + wh[1]);

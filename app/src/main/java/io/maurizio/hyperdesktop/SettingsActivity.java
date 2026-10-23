@@ -435,23 +435,25 @@ public class SettingsActivity extends Activity {
         small(getString(summaryRes));
     }
 
-    /** [labels, values]; value "" = non cambiare, "0" = nativa, altrimenti "WxH". */
+    /**
+     * [labels, values]; value "" = non cambiare, "0" = nativa, altrimenti "WxH".
+     *
+     * La risoluzione e' una scala LOGICA: si offrono solo riduzioni che mantengono
+     * le PROPORZIONI della nativa (ridimensionata per fattore). NON si usano le
+     * modalita' fisiche del monitor: comprendono formati diversi (anche verticali,
+     * es. 1920x2160) che, forzati come display size, ruotano o deformano il monitor.
+     */
     private String[][] resolutionOptions(Modes m) {
         List<String> labels = new ArrayList<>(), values = new ArrayList<>();
         labels.add(getString(R.string.choose_leave));  values.add("");
         labels.add(getString(R.string.choose_native) + " (" + m.nativeW + "×" + m.nativeH + ")"); values.add("0");
         TreeSet<String> seen = new TreeSet<>();
-        // risoluzioni fisiche diverse dalla nativa, poi scale logiche della nativa (mantengono le proporzioni)
-        List<int[]> cand = new ArrayList<>();
-        for (int[] r : m.res) if (!(r[0] == m.nativeW && r[1] == m.nativeH)) cand.add(r);
-        for (double f : new double[] { 2.0 / 3, 0.5 }) {
+        for (double f : new double[] { 0.75, 2.0 / 3, 0.5, 1.0 / 3 }) {
             int w = even(m.nativeW * f), h = even(m.nativeH * f);
-            if (w >= 320 && h >= 240) cand.add(new int[] { w, h });
-        }
-        for (int[] r : cand) {
-            String key = r[0] + "x" + r[1];
-            if (r[0] == m.nativeW && r[1] == m.nativeH) continue;
-            if (seen.add(key)) { labels.add(r[0] + "×" + r[1]); values.add(key); }
+            if (w < 640 || h < 480) continue;                       // niente scale troppo piccole
+            if (w == m.nativeW && h == m.nativeH) continue;
+            String key = w + "x" + h;
+            if (seen.add(key)) { labels.add(w + "×" + h); values.add(key); }
         }
         return new String[][] { labels.toArray(new String[0]), values.toArray(new String[0]) };
     }
