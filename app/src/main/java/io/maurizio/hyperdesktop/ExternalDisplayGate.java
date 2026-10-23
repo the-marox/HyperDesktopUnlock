@@ -1,3 +1,8 @@
+/*
+ * HyperDesktop Unlock
+ * Copyright (c) 2026 Maurizio Laschi (the-marox)
+ * SPDX-License-Identifier: MIT
+ */
 package io.maurizio.hyperdesktop;
 
 

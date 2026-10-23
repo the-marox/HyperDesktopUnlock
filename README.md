@@ -151,7 +151,7 @@ connecting the monitor; the class and method names you need are usually there.
 
 ## Credits
 
-Investigation and testing by [@the-marox](https://github.com/the-marox) on a
+Investigation and testing by Maurizio Laschi ([@the-marox](https://github.com/the-marox)) on a
 Xiaomi 15; module written with the help of Claude (Anthropic).
 Built on [LSPosed](https://github.com/LSPosed/LSPosed) and the classic Xposed API.
 
@@ -163,7 +163,8 @@ what you install. No warranty.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Copyright © 2026 Maurizio Laschi ([@the-marox](https://github.com/the-marox)).
+Released under the MIT License — see [LICENSE](LICENSE).
 
 ---
 
