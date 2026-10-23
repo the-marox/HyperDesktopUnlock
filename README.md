@@ -77,7 +77,7 @@ All logs go through `XposedBridge.log` with the prefix `HyperDesktop:` —
 
 ## Install
 
-1. Grab the APK from [Releases](../../releases) and install it.
+1. Grab the APK from [Releases](../../releases) (or from the [`releases/`](releases/) folder) and install it.
 2. LSPosed → Modules → enable **HyperDesktop Unlock**.
 3. Scope: **System Framework**, **System UI**, **Settings**.
 4. Reboot.
