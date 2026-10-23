@@ -51,6 +51,7 @@ places. The module hooks each one (see `app/src/main/java/.../`):
 | `SettingsTraceHooks` | system_server | 3 ms after SystemUI writes `Settings.Secure.mirror_built_in_display = 0`, the framework writes it back to `1` | Blocks writes of `1` coming from system_server (user choices from SystemUI/Settings still work); also protects `force_desktop_mode_on_external_displays` / `enable_freeform_support` from being reset |
 | `MirrorPolicyHooks` | system_server | `com.android.server.display.SecondaryDisplayPolicy` (not AOSP) forces mirroring from `DisplayManagerService$SettingsObserver.onChange` | `forceEnableMirrorBuiltInDisplaySettingIfNeeded()` and `enableMirrorBuiltInDisplaySetting()` become no-ops |
 | `DesktopModeHooks` | SystemUI + system_server | `DesktopModeStatus.isDesktopModeSupported/canEnterDesktopMode` are `false`; `DesktopModeFlags.getToggleOverride()` is `OVERRIDE_UNSET` (the "Enable desktop experience" developer option is hidden) | Forces them to `true` / `OVERRIDE_ON` in WMShell. `com.android.server.wm.DesktopModeHelper` is left alone (see above) |
+| `LauncherHooks` | SystemUI | HyperOS Home is single-display, so the monitor stays empty | When the Desktop choice is applied (`applyConnectionChoice(enableMirroring=false)`, dialog or *Don't ask again*), launches a launcher on the external display via `ActivityOptions.setLaunchDisplayId`. Default package: `cu.axel.smartdock` (SmartDock); change `LAUNCHER_PACKAGE` for Taskbar etc. |
 | `SettingsHooks` | Settings | The hidden AOSP *External displays* page crashes in `DisplayTopologyPreferenceController` (lateinit `paneContent` never set by the miuix adapter) | Marks that controller unavailable so the page renders |
 
 Optional, off by default:
@@ -86,8 +87,9 @@ All logs go through `XposedBridge.log` with the prefix `HyperDesktop:` —
 
 1. Connect the monitor. The dialog now shows **Computer** above *Mirroring*.
 2. Tap **Computer** (tick *Don't ask again* to make it automatic).
-3. The monitor becomes a black second display with its own status bar and
-   cursor. Launch apps on it with a launcher (SmartDock/Taskbar), or from a shell:
+3. The monitor becomes a second display with its own status bar and cursor.
+   If [SmartDock](https://github.com/axel358/smartdock) is installed, the module
+   starts it on the monitor automatically (1.1.0+). Otherwise launch apps from a shell:
    ```
    am start --display 2 -n com.android.settings/.Settings
    ```

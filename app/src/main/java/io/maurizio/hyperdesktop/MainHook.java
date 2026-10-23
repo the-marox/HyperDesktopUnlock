@@ -34,6 +34,7 @@ public class MainHook implements IXposedHookLoadPackage {
             case "com.android.systemui":
                 DesktopModeHooks.hook(lpparam, "systemui");
                 ConnectDialogHooks.hook(lpparam);
+                LauncherHooks.hook(lpparam);
                 SettingsTraceHooks.hook(lpparam, "systemui");
                 break;
             case "com.android.settings":
