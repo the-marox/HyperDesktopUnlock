@@ -135,25 +135,22 @@ final class DesktopSession {
             XposedHelpers.callMethod(wm, "getBaseDisplaySize", displayId, base);
             Point init = new Point();
             XposedHelpers.callMethod(wm, "getInitialDisplaySize", displayId, init);
-            if (s.equals("0")) {
-                if (base.equals(init.x, init.y)) return;
-                XposedHelpers.callMethod(wm, "clearForcedDisplaySize", displayId);
-                XLog.i("[session] risoluzione del display " + displayId + " -> nativa (" + init.x + "x" + init.y + ")");
-                return;
-            }
-            int[] wh = parseSize(s);
-            if (wh == null) { XLog.i("[session] risoluzione '" + s + "' non valida, ignorata"); return; }
-            // Sicurezza: una risoluzione con orientamento diverso dalla nativa
-            // (verticale su un pannello orizzontale) ruoterebbe/deformerebbe il
-            // monitor. La ignoriamo, cosi' una preferenza vecchia non lo capovolge.
-            if ((init.x >= init.y) != (wh[0] >= wh[1])) {
-                XLog.i("[session] risoluzione " + wh[0] + "x" + wh[1] + " con orientamento diverso dalla nativa ("
-                        + init.x + "x" + init.y + "), ignorata");
-                return;
-            }
-            if (base.x == wh[0] && base.y == wh[1]) return;
-            XposedHelpers.callMethod(wm, "setForcedDisplaySize", displayId, wh[0], wh[1]);
-            XLog.i("[session] risoluzione del display " + displayId + ": " + base.x + "x" + base.y + " -> " + wh[0] + "x" + wh[1]);
+            int[] wh = s.equals("0") ? null : parseSize(s);
+            // "Nativa" ("0"), valore non valido o orientamento errato -> misura
+            // fisica nativa. IMPORTANTE: su HyperOS NON si azzera la forzatura
+            // (clearForcedDisplaySize), perche' senza una misura esplicita il
+            // sistema ripiega sulla risoluzione del telefono in verticale. Quindi
+            // per la "nativa" imponiamo esplicitamente WxH fisici: sempre una
+            // dimensione esplicita, cosi' il monitor resta orizzontale.
+            boolean toNative = wh == null || ((init.x >= init.y) != (wh[0] >= wh[1]));
+            int tw = toNative ? init.x : wh[0];
+            int th = toNative ? init.y : wh[1];
+            if (wh == null && !s.equals("0"))
+                XLog.i("[session] risoluzione '" + s + "' non valida/orientamento errato, uso la nativa");
+            if (base.x == tw && base.y == th) return;
+            XposedHelpers.callMethod(wm, "setForcedDisplaySize", displayId, tw, th);
+            XLog.i("[session] risoluzione del display " + displayId + ": " + base.x + "x" + base.y
+                    + " -> " + tw + "x" + th + (toNative ? " (nativa)" : ""));
         } catch (Throwable t) { XLog.e("[session] impostazione risoluzione fallita", t); }
     }
 
