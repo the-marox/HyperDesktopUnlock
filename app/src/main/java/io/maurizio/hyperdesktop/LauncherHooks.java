@@ -92,7 +92,7 @@ public final class LauncherHooks {
         int target = externalDisplayId(ctx);
         if (target < 0) { XLog.i("[launcher] display esterno non ancora attivo, riprovo"); return false; }
 
-        Intent i = ctx.getPackageManager().getLaunchIntentForPackage(LAUNCHER_PACKAGE);
+        Intent i = desktopIntent(ctx);
         if (i == null) { XLog.i("[launcher] " + LAUNCHER_PACKAGE + " non installato"); return true; }
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
 
@@ -110,6 +110,28 @@ public final class LauncherHooks {
         }
         XLog.i("[launcher] " + LAUNCHER_PACKAGE + " avviato sul display " + target);
         return true;
+    }
+
+    /**
+     * Activity "desktop" del launcher: prima SECONDARY_HOME (fatta apposta per i
+     * display secondari, es. SmartDock SecondaryLauncherActivity), poi HOME, e
+     * solo come ultima scelta il normale punto d'ingresso dell'app.
+     */
+    private static Intent desktopIntent(Context ctx) {
+        android.content.pm.PackageManager pm = ctx.getPackageManager();
+        for (String cat : new String[] {
+                "android.intent.category.SECONDARY_HOME", Intent.CATEGORY_HOME }) {
+            Intent q = new Intent(Intent.ACTION_MAIN).addCategory(cat).setPackage(LAUNCHER_PACKAGE);
+            java.util.List<android.content.pm.ResolveInfo> r = pm.queryIntentActivities(q, 0);
+            if (r != null && !r.isEmpty()) {
+                android.content.pm.ActivityInfo ai = r.get(0).activityInfo;
+                Intent i = new Intent(Intent.ACTION_MAIN).addCategory(cat);
+                i.setClassName(ai.packageName, ai.name);
+                XLog.i("[launcher] activity desktop (" + cat.substring(cat.lastIndexOf('.') + 1) + "): " + ai.name);
+                return i;
+            }
+        }
+        return pm.getLaunchIntentForPackage(LAUNCHER_PACKAGE);
     }
 
     private static int externalDisplayId(Context ctx) {
