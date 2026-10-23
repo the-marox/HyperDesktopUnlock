@@ -104,10 +104,35 @@ public final class LauncherHooks {
 
         String pkg = Prefs.launcherPkg();
         Intent i = desktopIntent(ctx, pkg);
-        if (i == null) { XLog.i("[launcher] " + pkg + " non installato"); return true; }
+        if (i == null) { XLog.i("[launcher] " + pkg + " non installato"); launchExtras(ctx, target); return true; }
         startOnDisplay(ctx, i, target);
         XLog.i("[launcher] avvio di " + i.getComponent().flattenToShortString() + " richiesto sul display " + target);
+        launchExtras(ctx, target);
         return true;
+    }
+
+    /**
+     * App extra scelte nelle impostazioni, aperte sul monitor dopo il dock (una
+     * volta per collegamento). Un breve ritardo le fa comparire sopra al dock.
+     */
+    private static void launchExtras(final Context ctx, final int target) {
+        final String list = Prefs.extraApps();
+        if (list.isEmpty()) return;
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override public void run() {
+                PackageManager pm = ctx.getPackageManager();
+                for (String raw : list.split("[,\\s]+")) {
+                    String pkg = raw.trim();
+                    if (pkg.isEmpty()) continue;
+                    try {
+                        Intent i = pm.getLaunchIntentForPackage(pkg);
+                        if (i == null) { XLog.i("[launcher] app extra non installata: " + pkg); continue; }
+                        startOnDisplay(ctx, i, target);
+                        XLog.i("[launcher] app extra avviata sul display " + target + ": " + pkg);
+                    } catch (Throwable t) { XLog.e("[launcher] app extra fallita: " + pkg, t); }
+                }
+            }
+        }, 1200);
     }
 
     /**

@@ -34,11 +34,15 @@ final class Prefs {
 
     static final String K_LAUNCHER_PKG   = "launcher_pkg";
     static final String K_AUTO_LAUNCH    = "auto_launch";
+    static final String K_EXTRA_APPS     = "extra_apps";
     static final String K_MANAGE_A11Y    = "manage_accessibility";
     static final String K_PHONE_OFF      = "phone_screen_off";
     static final String K_SHORTCUTS      = "shortcuts";
     static final String K_SWITCHER       = "switcher_preview";
     static final String K_DENSITY        = "monitor_density";
+    static final String K_RESOLUTION     = "monitor_resolution";
+    static final String K_REFRESH        = "monitor_refresh";
+    static final String K_MODES_CACHE    = "modes_cache";   // solo l'app: modalita' viste sull'ultimo monitor
     static final String K_KEEP_AWAKE     = "keep_awake";
 
     static final String  D_LAUNCHER_PKG  = "cu.axel.smartdock";
@@ -119,6 +123,9 @@ final class Prefs {
 
     static String  launcherPkg()   { return str(K_LAUNCHER_PKG, D_LAUNCHER_PKG); }
     static boolean autoLaunch()    { return bool(K_AUTO_LAUNCH, D_AUTO_LAUNCH); }
+    static String  extraApps()     { return str(K_EXTRA_APPS, ""); }
+    static String  resolution()    { return str(K_RESOLUTION, ""); }
+    static String  refreshRate()   { return str(K_REFRESH, ""); }
     static boolean manageA11y()    { return bool(K_MANAGE_A11Y, D_MANAGE_A11Y); }
     static boolean phoneOff()      { return bool(K_PHONE_OFF, D_PHONE_OFF); }
     static boolean shortcuts()     { return bool(K_SHORTCUTS, D_SHORTCUTS); }

@@ -10,9 +10,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.hardware.display.DisplayManager;
+import android.hardware.input.InputManager;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
+import android.os.SystemClock;
 import android.view.Display;
+import android.view.InputDevice;
+import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.widget.Toast;
 
@@ -48,7 +52,8 @@ import de.robv.android.xposed.XposedHelpers;
 final class DesktopShortcuts {
 
     private enum Action {
-        SCREENSHOT(true), MOVE(false), CLOSE(true), SHOW_DESKTOP(true), TOGGLE_PHONE(false);
+        SCREENSHOT(true), MOVE(false), CLOSE(true), SHOW_DESKTOP(true), TOGGLE_PHONE(false),
+        BACK(true), FOCUS_APP(true);
 
         /** true = solo con il focus sul monitor; sul telefono il tasto fa quello di sempre. */
         final boolean monitorOnly;
@@ -83,7 +88,7 @@ final class DesktopShortcuts {
         if (ev.isMetaPressed()) metaComboUsed = true;
         AltTabHooks.handler().post(new Runnable() {
             @Override public void run() {
-                try { perform(a, focused); } catch (Throwable t) { XLog.e("[keys] azione " + a + " fallita", t); }
+                try { perform(a, focused, code); } catch (Throwable t) { XLog.e("[keys] azione " + a + " fallita", t); }
             }
         });
         return true;
@@ -100,15 +105,19 @@ final class DesktopShortcuts {
         if (alt && !meta && !ctrl && c == KeyEvent.KEYCODE_F4) return Action.CLOSE;
         if (meta && !shift && !alt && !ctrl && c == KeyEvent.KEYCODE_D) return Action.SHOW_DESKTOP;
         if (meta && !shift && !alt && !ctrl && c == KeyEvent.KEYCODE_P) return Action.TOGGLE_PHONE;
+        if (meta && !shift && !alt && !ctrl && c == KeyEvent.KEYCODE_DEL) return Action.BACK;  // Win+Backspace
+        if (meta && !shift && !alt && !ctrl && c >= KeyEvent.KEYCODE_1 && c <= KeyEvent.KEYCODE_9) return Action.FOCUS_APP;
         return null;
     }
 
-    private static void perform(Action a, int focused) throws Throwable {
+    private static void perform(Action a, int focused, int keyCode) throws Throwable {
         switch (a) {
             case SCREENSHOT:   screenshot(focused); break;
             case CLOSE:        closeTop(focused); break;
             case SHOW_DESKTOP: showDesktop(focused); break;
             case TOGGLE_PHONE: PhoneScreen.toggle(); break;
+            case BACK:         injectBack(focused); break;
+            case FOCUS_APP:    focusNth(focused, keyCode - KeyEvent.KEYCODE_1); break;
             case MOVE: {
                 int ext = ExternalDisplayGate.externalId;
                 if (ext <= 0) return;
@@ -150,6 +159,44 @@ final class DesktopShortcuts {
             LauncherHooks.startOnDisplay(ctx, desktop, displayId);
             XLog.i("[keys] Win+D: avvio del desktop del dock richiesto sul display " + displayId);
         }
+    }
+
+    /** Win+Backspace: invia Indietro alla finestra a fuoco sul monitor. */
+    private static void injectBack(int displayId) {
+        Context ctx = AltTabHooks.systemContext();
+        if (ctx == null) return;
+        InputManager im = ctx.getSystemService(InputManager.class);
+        if (im == null) return;
+        long now = SystemClock.uptimeMillis();
+        inject(im, backEvent(now, KeyEvent.ACTION_DOWN), displayId);
+        inject(im, backEvent(now, KeyEvent.ACTION_UP), displayId);
+        XLog.i("[keys] Win+Backspace: Indietro inviato al display " + displayId);
+    }
+
+    private static KeyEvent backEvent(long when, int action) {
+        return new KeyEvent(when, when, action, KeyEvent.KEYCODE_BACK, 0, 0,
+                KeyCharacterMap.VIRTUAL_KEYBOARD, 0, KeyEvent.FLAG_FROM_SYSTEM, InputDevice.SOURCE_KEYBOARD);
+    }
+
+    private static void inject(InputManager im, KeyEvent ev, int displayId) {
+        try { XposedHelpers.callMethod(ev, "setDisplayId", displayId); }
+        catch (Throwable t) { XLog.e("[keys] setDisplayId non disponibile, Indietro potrebbe finire sul telefono", t); }
+        try { XposedHelpers.callMethod(im, "injectInputEvent", ev, 0 /* ASYNC */); }
+        catch (Throwable t) { XLog.e("[keys] injectInputEvent fallito", t); }
+    }
+
+    /**
+     * Win+1..9: porta in primo piano l'ennesima app aperta sul monitor.
+     * Ordiniamo per taskId (~ ordine di apertura) cosi' la posizione e' STABILE:
+     * Win+1 e' sempre la stessa app anche quando cambia quella a fuoco.
+     */
+    private static void focusNth(int displayId, int index) {
+        if (index < 0) return;
+        List<Integer> tasks = AltTabHooks.tasksOn(displayId);
+        java.util.Collections.sort(tasks);
+        if (index >= tasks.size()) { XLog.i("[keys] Win+" + (index + 1) + ": nessuna app in posizione " + (index + 1)); return; }
+        AltTabHooks.moveToFront(tasks.get(index));
+        XLog.i("[keys] Win+" + (index + 1) + ": task " + tasks.get(index) + " in primo piano sul display " + displayId);
     }
 
     private static void moveTop(int from, int to) {

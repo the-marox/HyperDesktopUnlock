@@ -9,6 +9,9 @@
     <string name="auto_launch_summary">Apre il desktop del dock sul monitor quando scegli Computer.</string>
     <string name="launcher_pkg_title">App del dock (nome del pacchetto)</string>
     <string name="launcher_pkg_summary">SmartDock: cu.axel.smartdock · Taskbar: com.farmerbb.taskbar</string>
+    <string name="extra_apps_title">Apri anche sul monitor</string>
+    <string name="extra_apps_summary">App da aprire sul monitor dopo il dock, al collegamento. Nomi dei pacchetti separati da spazi o virgole.</string>
+    <string name="extra_apps_hint">com.android.chrome, org.videolan.vlc</string>
     <string name="manage_a11y_title">Gestisci il servizio di accessibilità del dock</string>
     <string name="manage_a11y_summary">Lo attiva quando parte il desktop e lo spegne quando stacchi il cavo, così il dock non compare mai sul telefono.</string>
 
@@ -21,14 +24,29 @@
     <string name="section_monitor">Monitor</string>
     <string name="density_title">Densità del monitor (dpi)</string>
     <string name="density_summary">Più alto = più grande. Sui monitor 4K di solito va bene tra 240 e 360. 0 = valore predefinito del monitor; lascia vuoto per non cambiarla mai.</string>
-    <string name="density_apply">Applica</string>
     <string name="density_invalid">Inserisci 0 o un valore tra 100 e 800</string>
-    <string name="density_cleared">Fatto: il modulo non cambierà più la densità del monitor.</string>
-    <string name="density_saved">Salvato. Applicato subito se il monitor è collegato, altrimenti al prossimo collegamento.</string>
+    <string name="field_apply">Applica</string>
+    <string name="field_saved">Salvato. Applicato subito se il monitor è collegato, altrimenti al prossimo collegamento.</string>
+    <string name="field_cleared">Fatto: il modulo non cambierà più questo parametro.</string>
+    <string name="resolution_title">Risoluzione del monitor</string>
+    <string name="resolution_summary">Risoluzione logica, es. 2560x1440 o 1920x1080. Più bassa = interfaccia più grande e GPU più scarica. 0 = nativa; vuoto = lascia com\'è.</string>
+    <string name="resolution_invalid">Usa LARGHEZZAxALTEZZA (es. 1920x1080), oppure 0</string>
+    <string name="refresh_title">Frequenza del monitor (Hz)</string>
+    <string name="refresh_summary">Applicata solo se il monitor la supporta alla risoluzione attuale (es. 60). 0 = nativa; vuoto = lascia com\'è.</string>
+    <string name="refresh_invalid">Inserisci una frequenza (es. 60), oppure 0</string>
+    <string name="choose_leave">Non cambiare</string>
+    <string name="choose_native">Nativa</string>
+    <string name="modes_hint">Collega il monitor per scegliere tra le modalità che supporta. Fino ad allora puoi digitarle.</string>
 
     <string name="section_keyboard">Tastiera</string>
     <string name="shortcuts_title">Scorciatoie da tastiera del desktop</string>
     <string name="switcher_title">Barra anteprima Alt+Tab</string>
     <string name="switcher_summary">Tieni premuto Alt per vedere le app aperte sul monitor e rilascia Alt per passare a quella scelta. Spenta = cambio immediato a ogni Tab.</string>
-    <string name="shortcuts_list">Alt+Tab · Alt+Maiusc+Tab — cambia app sul monitor\nStamp · Win+Maiusc+S — screenshot del monitor\nWin+Maiusc+freccia — sposta un\'app tra monitor e telefono\nAlt+F4 — chiudi l\'app sul monitor\nWin+D — mostra il desktop del dock\nWin+P — schermo del telefono acceso/spento</string>
+    <string name="shortcuts_list">Alt+Tab · Alt+Maiusc+Tab — cambia app sul monitor\nStamp · Win+Maiusc+S — screenshot del monitor\nWin+Maiusc+freccia — sposta un\'app tra monitor e telefono\nAlt+F4 — chiudi l\'app sul monitor\nWin+D — mostra il desktop del dock\nWin+Backspace — Indietro\nWin+1…9 — metti a fuoco l\'ennesima app\nWin+P — schermo del telefono acceso/spento</string>
+
+    <string name="section_updates">Aggiornamenti</string>
+    <string name="updates_checking">Controllo aggiornamenti…</string>
+    <string name="updates_latest">Hai l\'ultima versione (v%1$s).</string>
+    <string name="updates_available">Aggiornamento disponibile: %1$s — tocca per aprire le Release.</string>
+    <string name="updates_error">Impossibile controllare gli aggiornamenti — tocca per aprire le Release.</string>
 </resources>

@@ -9,32 +9,35 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Point;
+import android.hardware.display.DisplayManager;
 import android.os.PowerManager;
+import android.view.Display;
 
 import de.robv.android.xposed.XposedHelpers;
 
 /**
- * Opzioni della sessione desktop (system_server), guidate da ExternalDisplayGate:
+ * Opzioni della sessione desktop (system_server), guidate da ExternalDisplayGate.
+ * Applicate al collegamento del monitor e di nuovo quando l'app manda ACTION_APPLY
+ * (permesso con firma: solo l'app del modulo puo' mandarlo), cosi' valgono subito
+ * senza ricollegare il cavo.
  *
- *  - densita' del monitor: applicata al collegamento con
- *    IWindowManager.setForcedDisplayDensityForUser (come `wm density N -d id`).
- *    Chiave assente = non tocchiamo nulla; 0 = valore predefinito del monitor.
- *    Il WindowManager la ricorda per quel monitor, quindi la riapplichiamo solo
- *    se e' diversa da quella attuale (ogni cambio riconfigura le app sul monitor).
- *  - "tieni acceso": un wakelock tiene acceso il sistema finche' il monitor e'
- *    in desktop, cosi' il timeout dello schermo non lo spegne. Il tasto di
- *    accensione continua a funzionare normalmente.
+ *  - densita' (`wm density`): IWindowManager.setForcedDisplayDensityForUser.
+ *  - risoluzione logica (`wm size`): IWindowManager.setForcedDisplaySize.
+ *  - frequenza di aggiornamento: Display.setUserPreferredDisplayMode, SOLO scegliendo
+ *    tra le modalita' che il monitor dichiara di supportare (mai una inventata, cosi'
+ *    non si rischia di spegnere il monitor).
+ *  - "tieni acceso": un wakelock impedisce il timeout dello schermo in desktop.
  *
- * Quando l'utente salva queste opzioni, SettingsActivity manda ACTION_APPLY
- * (permesso con firma: solo l'app del modulo puo' mandarlo) e le riapplichiamo
- * subito, senza ricollegare il monitor.
+ * Per ognuna: chiave assente = non tocchiamo nulla; "0" = valore nativo del monitor.
+ * Riapplichiamo solo se il valore e' diverso da quello attuale.
  *
  * Tutto gira sul thread di AltTabHooks, mai dentro gli hook del WindowManager.
  */
 final class DesktopSession {
 
-    private static final int USER_CURRENT     = -2;
-    private static final int DENSITY_DELAY_MS = 1500;   // display completamente registrato
+    private static final int USER_CURRENT  = -2;
+    private static final int APPLY_DELAY_MS = 1500;   // display completamente registrato
 
     private static PowerManager.WakeLock wakeLock;
     private static boolean receiverRegistered;
@@ -48,9 +51,9 @@ final class DesktopSession {
         });
         AltTabHooks.handler().postDelayed(new Runnable() {
             @Override public void run() {
-                if (ExternalDisplayGate.externalId == displayId) applyDensity(displayId);
+                if (ExternalDisplayGate.externalId == displayId) applyDisplayConfig(displayId);
             }
-        }, DENSITY_DELAY_MS);
+        }, APPLY_DELAY_MS);
     }
 
     static void onExternalRemoved() {
@@ -76,7 +79,7 @@ final class DesktopSession {
                     }
                     XLog.i("[session] impostazioni aggiornate dall'app");
                     setKeepAwake(Prefs.keepAwake());
-                    applyDensity(ExternalDisplayGate.externalId);
+                    applyDisplayConfig(ExternalDisplayGate.externalId);
                 }
             };
             ctx.registerReceiver(r, new IntentFilter(Prefs.ACTION_APPLY), Prefs.PERMISSION_APPLY,
@@ -86,30 +89,111 @@ final class DesktopSession {
     }
 
     // ------------------------------------------------------------------
-    // densita'
+    // configurazione del display (densita' + risoluzione + frequenza)
     // ------------------------------------------------------------------
+    private static void applyDisplayConfig(int displayId) {
+        if (displayId <= 0) return;
+        applyRefresh(displayId);   // modalita' fisica prima
+        applySize(displayId);      // risoluzione logica
+        applyDensity(displayId);   // densita' logica
+    }
+
+    private static Object wms() {
+        return XposedHelpers.callStaticMethod(
+            XposedHelpers.findClass("android.view.WindowManagerGlobal", null), "getWindowManagerService");
+    }
+
     private static void applyDensity(int displayId) {
-        if (displayId <= 0 || !Prefs.has(Prefs.K_DENSITY)) return;
+        if (!Prefs.has(Prefs.K_DENSITY)) return;
         int dpi = Prefs.density();
-        if (dpi != Prefs.DENSITY_DEFAULT && (dpi < Prefs.DENSITY_MIN || dpi > Prefs.DENSITY_MAX)) {
-            XLog.i("[session] densita' " + dpi + " fuori intervallo, ignorata");
-            return;
+        if (dpi == Prefs.DENSITY_INVALID) return;
+        if (dpi != 0 && (dpi < Prefs.DENSITY_MIN || dpi > Prefs.DENSITY_MAX)) {
+            XLog.i("[session] densita' " + dpi + " fuori intervallo, ignorata"); return;
         }
         try {
-            Object wm = XposedHelpers.callStaticMethod(
-                XposedHelpers.findClass("android.view.WindowManagerGlobal", null), "getWindowManagerService");
+            Object wm = wms();
             int base    = intCall(wm, "getBaseDisplayDensity", displayId);
             int initial = intCall(wm, "getInitialDisplayDensity", displayId);
-            if (dpi == Prefs.DENSITY_DEFAULT) {
-                if (base > 0 && base == initial) return;   // gia' quella predefinita
+            if (dpi == 0) {
+                if (base > 0 && base == initial) return;
                 XposedHelpers.callMethod(wm, "clearForcedDisplayDensityForUser", displayId, USER_CURRENT);
-                XLog.i("[session] densita' del display " + displayId + " riportata al valore predefinito (" + initial + " dpi)");
+                XLog.i("[session] densita' del display " + displayId + " -> nativa (" + initial + " dpi)");
             } else {
                 if (base == dpi) return;
                 XposedHelpers.callMethod(wm, "setForcedDisplayDensityForUser", displayId, dpi, USER_CURRENT);
                 XLog.i("[session] densita' del display " + displayId + ": " + base + " -> " + dpi + " dpi");
             }
         } catch (Throwable t) { XLog.e("[session] impostazione densita' fallita", t); }
+    }
+
+    private static void applySize(int displayId) {
+        if (!Prefs.has(Prefs.K_RESOLUTION)) return;
+        String s = Prefs.resolution();
+        try {
+            Object wm = wms();
+            Point base = new Point();
+            XposedHelpers.callMethod(wm, "getBaseDisplaySize", displayId, base);
+            Point init = new Point();
+            XposedHelpers.callMethod(wm, "getInitialDisplaySize", displayId, init);
+            if (s.equals("0")) {
+                if (base.equals(init.x, init.y)) return;
+                XposedHelpers.callMethod(wm, "clearForcedDisplaySize", displayId);
+                XLog.i("[session] risoluzione del display " + displayId + " -> nativa (" + init.x + "x" + init.y + ")");
+                return;
+            }
+            int[] wh = parseSize(s);
+            if (wh == null) { XLog.i("[session] risoluzione '" + s + "' non valida, ignorata"); return; }
+            if (base.x == wh[0] && base.y == wh[1]) return;
+            XposedHelpers.callMethod(wm, "setForcedDisplaySize", displayId, wh[0], wh[1]);
+            XLog.i("[session] risoluzione del display " + displayId + ": " + base.x + "x" + base.y + " -> " + wh[0] + "x" + wh[1]);
+        } catch (Throwable t) { XLog.e("[session] impostazione risoluzione fallita", t); }
+    }
+
+    private static void applyRefresh(int displayId) {
+        if (!Prefs.has(Prefs.K_REFRESH)) return;
+        String s = Prefs.refreshRate();
+        try {
+            Context ctx = AltTabHooks.systemContext();
+            DisplayManager dm = ctx != null ? ctx.getSystemService(DisplayManager.class) : null;
+            Display d = dm != null ? dm.getDisplay(displayId) : null;
+            if (d == null) return;
+            if (s.equals("0")) {
+                // @SystemApi, non nell'SDK pubblico: via reflection (siamo in system_server)
+                XposedHelpers.callMethod(d, "clearUserPreferredDisplayMode");
+                XLog.i("[session] frequenza del display " + displayId + " -> nativa");
+                return;
+            }
+            int hz;
+            try { hz = Integer.parseInt(s); } catch (NumberFormatException e) { return; }
+            Display.Mode cur = d.getMode();
+            Display.Mode best = null;
+            for (Display.Mode m : d.getSupportedModes()) {
+                if (m.getPhysicalWidth() != cur.getPhysicalWidth()
+                        || m.getPhysicalHeight() != cur.getPhysicalHeight()) continue;
+                if (Math.round(m.getRefreshRate()) != hz) continue;
+                best = m; break;
+            }
+            if (best == null) {
+                XLog.i("[session] il monitor non supporta " + cur.getPhysicalWidth() + "x"
+                        + cur.getPhysicalHeight() + "@" + hz + "Hz, frequenza ignorata");
+                return;
+            }
+            if (best.getModeId() == cur.getModeId()) return;
+            XposedHelpers.callMethod(d, "setUserPreferredDisplayMode", best);
+            XLog.i("[session] frequenza del display " + displayId + " -> " + hz + "Hz (mode " + best.getModeId() + ")");
+        } catch (Throwable t) { XLog.e("[session] impostazione frequenza fallita", t); }
+    }
+
+    private static int[] parseSize(String s) {
+        int x = s.indexOf('x');
+        if (x < 0) x = s.indexOf('X');
+        if (x <= 0 || x >= s.length() - 1) return null;
+        try {
+            int w = Integer.parseInt(s.substring(0, x).trim());
+            int h = Integer.parseInt(s.substring(x + 1).trim());
+            if (w < 320 || w > 7680 || h < 240 || h > 4320) return null;
+            return new int[] { w, h };
+        } catch (NumberFormatException e) { return null; }
     }
 
     private static int intCall(Object o, String method, int displayId) {

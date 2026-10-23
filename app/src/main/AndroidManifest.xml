@@ -7,6 +7,8 @@
         android:name="io.maurizio.hyperdesktop.permission.APPLY_SETTINGS"
         android:protectionLevel="signature" />
     <uses-permission android:name="io.maurizio.hyperdesktop.permission.APPLY_SETTINGS" />
+    <!-- Solo l'app (SettingsActivity) la usa, per il controllo aggiornamenti su GitHub -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="false"

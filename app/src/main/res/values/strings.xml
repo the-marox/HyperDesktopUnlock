@@ -20,6 +20,9 @@
     <string name="auto_launch_summary">Opens the dock\'s desktop on the monitor when you choose Computer.</string>
     <string name="launcher_pkg_title">Dock app (package name)</string>
     <string name="launcher_pkg_summary">SmartDock: cu.axel.smartdock · Taskbar: com.farmerbb.taskbar</string>
+    <string name="extra_apps_title">Also open on the monitor</string>
+    <string name="extra_apps_summary">Apps to launch on the monitor after the dock, on connect. Package names separated by spaces or commas.</string>
+    <string name="extra_apps_hint">com.android.chrome, org.videolan.vlc</string>
     <string name="manage_a11y_title">Manage the dock\'s accessibility service</string>
     <string name="manage_a11y_summary">Turns it on when the desktop starts and off when you unplug, so the dock never shows up on the phone.</string>
 
@@ -32,14 +35,29 @@
     <string name="section_monitor">Monitor</string>
     <string name="density_title">Monitor density (dpi)</string>
     <string name="density_summary">Higher = bigger. 4K monitors usually look right between 240 and 360. 0 = the monitor\'s default; leave empty to never change it.</string>
-    <string name="density_apply">Apply</string>
     <string name="density_invalid">Enter 0 or a value between 100 and 800</string>
-    <string name="density_cleared">Done: the module won\'t change the monitor density any more.</string>
-    <string name="density_saved">Saved. Applied now if the monitor is connected, otherwise on the next connection.</string>
+    <string name="field_apply">Apply</string>
+    <string name="field_saved">Saved. Applied now if the monitor is connected, otherwise on the next connection.</string>
+    <string name="field_cleared">Done — the module will not change this any more.</string>
+    <string name="resolution_title">Monitor resolution</string>
+    <string name="resolution_summary">Logical resolution, e.g. 2560x1440 or 1920x1080. Lower = bigger UI and lighter on the GPU. 0 = native, empty = leave as is.</string>
+    <string name="resolution_invalid">Use WIDTHxHEIGHT (e.g. 1920x1080), or 0</string>
+    <string name="refresh_title">Monitor refresh rate (Hz)</string>
+    <string name="refresh_summary">Only applied if the monitor reports it at the current resolution (e.g. 60). 0 = native, empty = leave as is.</string>
+    <string name="refresh_invalid">Enter a refresh rate (e.g. 60), or 0</string>
+    <string name="choose_leave">Leave as is</string>
+    <string name="choose_native">Native</string>
+    <string name="modes_hint">Connect the monitor to pick from the modes it supports. Until then you can type them.</string>
 
     <string name="section_keyboard">Keyboard</string>
     <string name="shortcuts_title">Desktop keyboard shortcuts</string>
     <string name="switcher_title">Alt+Tab preview bar</string>
     <string name="switcher_summary">Hold Alt to see the open apps on the monitor and release Alt to switch. Off = switch instantly on each Tab.</string>
-    <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — switch apps on the monitor\nPrint Screen · Win+Shift+S — screenshot of the monitor\nWin+Shift+Arrow — move an app between monitor and phone\nAlt+F4 — close the app on the monitor\nWin+D — show the dock\'s desktop\nWin+P — phone screen on/off</string>
+    <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — switch apps on the monitor\nPrint Screen · Win+Shift+S — screenshot of the monitor\nWin+Shift+Arrow — move an app between monitor and phone\nAlt+F4 — close the app on the monitor\nWin+D — show the dock\'s desktop\nWin+Backspace — Back\nWin+1…9 — focus the Nth app\nWin+P — phone screen on/off</string>
+
+    <string name="section_updates">Updates</string>
+    <string name="updates_checking">Checking for updates…</string>
+    <string name="updates_latest">You are on the latest version (v%1$s).</string>
+    <string name="updates_available">Update available: %1$s — tap to open Releases.</string>
+    <string name="updates_error">Could not check for updates — tap to open Releases.</string>
 </resources>
