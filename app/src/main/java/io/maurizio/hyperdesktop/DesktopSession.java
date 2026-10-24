@@ -79,6 +79,7 @@ final class DesktopSession {
                     }
                     XLog.i("[session] impostazioni aggiornate dall'app");
                     setKeepAwake(Prefs.keepAwake());
+                    PhoneScreen.onSettingsChanged();   // touchpad acceso/spento mentre il telefono e' nero
                     applyDisplayConfig(ExternalDisplayGate.externalId);
                 }
             };

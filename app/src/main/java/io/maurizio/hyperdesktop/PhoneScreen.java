@@ -14,21 +14,32 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.telephony.TelephonyManager;
 
 import de.robv.android.xposed.XposedHelpers;
 
 /**
- * Spegne il pannello del TELEFONO mentre il monitor e' in modalita' desktop
- * (system_server). Stessa tecnica di scrcpy --turn-screen-off: power mode OFF
- * sul solo display interno via SurfaceControl, lasciando sveglio il sistema.
+ * "Spegne" lo schermo del TELEFONO mentre il monitor e' in modalita' desktop
+ * (system_server), in uno di due modi:
  *
- *  - spegne ~2 s dopo che il display esterno fisico diventa un display desktop
+ *  - pannello spento (predefinito): power mode OFF sul solo display interno via
+ *    SurfaceControl, come scrcpy --turn-screen-off; il sistema resta sveglio.
+ *    Su questo telefono si addormenta anche il sensore touch.
+ *  - nero con touchpad (opzione): pannello acceso ma coperto da una finestra nera
+ *    a luminosita' minima che usa i tocchi come touchpad del monitor (Touchpad).
+ *    Se il touchpad non si puo' attivare, si ripiega sul pannello spento.
+ *
+ *  - parte ~2 s dopo che il display esterno fisico diventa un display desktop
  *    (se il telefono e' bloccato, aspetta lo sblocco);
- *  - riaccende quando il display esterno viene rimosso (cavo staccato);
+ *  - il telefono torna normale quando il display esterno viene rimosso (cavo
+ *    staccato), con Win+P, con tre dita sul touchpad o per una chiamata in arrivo;
  *  - una volta per collegamento: se l'utente blocca e risveglia il telefono,
- *    il pannello torna acceso e resta acceso (via d'uscita).
+ *    lo schermo torna acceso e resta acceso (via d'uscita).
  * Lo spegnimento automatico si puo' disattivare (Prefs.phoneOff); Win+P
  * (toggle) funziona comunque.
+ *
+ * Tutto lo stato si cambia solo sul nostro thread (anche i tocchi del touchpad
+ * arrivano qui, perche' la sua finestra e' aggiunta da questo thread).
  */
 public final class PhoneScreen {
 
@@ -39,7 +50,10 @@ public final class PhoneScreen {
 
     private static ClassLoader cl;
     private static Handler handler;
+    /** Telefono "spento" da noi: pannello spento, oppure nero con il touchpad. */
     private static volatile boolean turnedOff        = false;
+    /** true = nero con il touchpad (pannello acceso); false = pannello spento. */
+    private static volatile boolean touchpadMode     = false;
     private static volatile boolean pendingUnlock    = false;
     private static volatile boolean receiverRegistered = false;
 
@@ -68,19 +82,49 @@ public final class PhoneScreen {
     /** Chiamato da ExternalDisplayGate quando il display esterno sparisce. */
     static void onExternalRemoved() {
         pendingUnlock = false;
-        if (!turnedOff) return;
-        turnedOff = false;
+        handler().post(new Runnable() {
+            @Override public void run() { restore("cavo staccato"); }
+        });
+    }
+
+    /** Win+P: telefono normale <-> spento (nel modo scelto nelle impostazioni). */
+    static void toggle() {
         handler().post(new Runnable() {
             @Override public void run() {
-                if (isInteractive()) {
-                    if (setInternalPower(POWER_MODE_NORMAL)) XLog.i("[screen] pannello telefono RIACCESO");
-                } else {
-                    XLog.i("[screen] telefono in standby: la riaccensione la gestisce il sistema al risveglio");
-                }
+                if (!ExternalDisplayGate.present || !isInteractive()) return;
+                Context c0 = systemContext();
+                if (c0 == null) return;
+                registerReceiver(c0);   // per accorgersi di standby, risveglio e chiamate
+                if (turnedOff) restore("Win+P");
+                else turnOff(c0, "Win+P");
             }
         });
     }
 
+    /** Tre dita sul touchpad. */
+    static void restoreFromTouchpad() {
+        handler().post(new Runnable() {
+            @Override public void run() { restore("tre dita sul touchpad"); }
+        });
+    }
+
+    /** L'app ha cambiato le impostazioni: se il telefono e' spento nel modo sbagliato, cambia modo subito. */
+    static void onSettingsChanged() {
+        handler().post(new Runnable() {
+            @Override public void run() {
+                if (Touchpad.isShown()) Touchpad.reloadSettings();   // sensibilita'
+                if (!turnedOff || Prefs.touchpad() == touchpadMode) return;
+                Context c0 = systemContext();
+                if (c0 == null) return;
+                restore("impostazioni cambiate");
+                if (!turnedOff && ExternalDisplayGate.present && isInteractive()) turnOff(c0, "impostazioni cambiate");
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // spegnimento / ripristino (solo sul nostro thread)
+    // ------------------------------------------------------------------
     private static void tryTurnOff(String why) {
         if (!ExternalDisplayGate.present || turnedOff) return;
         Context ctx = systemContext();
@@ -90,27 +134,76 @@ public final class PhoneScreen {
         if (km != null && km.isKeyguardLocked()) {
             pendingUnlock = true;
             registerReceiver(ctx);
-            XLog.i("[screen] telefono bloccato: spengo il pannello dopo lo sblocco");
+            XLog.i("[screen] telefono bloccato: spengo lo schermo dopo lo sblocco");
             return;
+        }
+        turnOff(ctx, why);
+    }
+
+    private static void turnOff(Context ctx, String why) {
+        if (turnedOff) return;
+        if (Prefs.touchpad()) {
+            if (Touchpad.show(ctx)) {
+                turnedOff = true;
+                touchpadMode = true;
+                XLog.i("[screen] schermo del telefono NERO con touchpad (" + why + ")");
+                return;
+            }
+            XLog.i("[screen] touchpad non disponibile: spengo il pannello come al solito");
         }
         if (setInternalPower(POWER_MODE_OFF)) {
             turnedOff = true;
+            touchpadMode = false;
             XLog.i("[screen] pannello telefono SPENTO (" + why + ")");
         }
     }
 
-    /** Sblocco (per lo spegnimento rimandato) e accensione del pannello da parte del sistema. */
+    private static void restore(String why) {
+        if (!turnedOff) return;
+        if (touchpadMode) {
+            Touchpad.hide();
+            XLog.i("[screen] telefono di nuovo normale (" + why + ")");
+        } else if (!isInteractive()) {
+            XLog.i("[screen] telefono in standby: la riaccensione la gestisce il sistema al risveglio");
+        } else if (setInternalPower(POWER_MODE_NORMAL)) {
+            XLog.i("[screen] pannello telefono RIACCESO (" + why + ")");
+        } else {
+            return;   // resta spento: Win+P riprova
+        }
+        turnedOff = false;
+        touchpadMode = false;
+    }
+
+    /** Standby, risveglio, sblocco (per lo spegnimento rimandato) e chiamate in arrivo. */
     private static void registerReceiver(Context ctx) {
         if (receiverRegistered) return;
         try {
             BroadcastReceiver r = new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent i) {
-                    if (Intent.ACTION_SCREEN_ON.equals(i.getAction())) {
-                        // il sistema ha riacceso il pannello (risveglio): il nostro stato non vale piu'
+                    String a = i.getAction();
+                    if (Intent.ACTION_SCREEN_OFF.equals(a)) {
+                        // standby (tasto di accensione o timeout): al risveglio il telefono e' normale
+                        if (touchpadMode) {
+                            Touchpad.hide();
+                            touchpadMode = false;
+                            turnedOff = false;
+                            XLog.i("[screen] standby: touchpad chiuso");
+                        }
+                        return;
+                    }
+                    if (Intent.ACTION_SCREEN_ON.equals(a)) {
+                        // il sistema ha riacceso lo schermo (risveglio): il nostro stato non vale piu'
+                        if (touchpadMode) { Touchpad.hide(); touchpadMode = false; }
                         turnedOff = false;
                         return;
                     }
-                    if (pendingUnlock) {
+                    if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(a)) {
+                        if (TelephonyManager.EXTRA_STATE_RINGING.equals(i.getStringExtra(TelephonyManager.EXTRA_STATE))) {
+                            restore("chiamata in arrivo");
+                        }
+                        return;
+                    }
+                    if (pendingUnlock) {   // ACTION_USER_PRESENT
                         pendingUnlock = false;
                         handler().postDelayed(new Runnable() {
                             @Override public void run() { tryTurnOff("sblocco"); }
@@ -120,25 +213,11 @@ public final class PhoneScreen {
             };
             IntentFilter f = new IntentFilter(Intent.ACTION_USER_PRESENT);
             f.addAction(Intent.ACTION_SCREEN_ON);
+            f.addAction(Intent.ACTION_SCREEN_OFF);
+            f.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
             ctx.registerReceiver(r, f, null, handler(), Context.RECEIVER_EXPORTED);
             receiverRegistered = true;
         } catch (Throwable t) { XLog.e("[screen] registerReceiver fallito", t); }
-    }
-
-    /** Win+P: accende/spegne il pannello del telefono mentre il monitor e' in desktop. */
-    static void toggle() {
-        handler().post(new Runnable() {
-            @Override public void run() {
-                if (!ExternalDisplayGate.present || !isInteractive()) return;
-                Context c0 = systemContext();
-                if (c0 != null) registerReceiver(c0);   // per accorgersi del risveglio
-                if (turnedOff) {
-                    if (setInternalPower(POWER_MODE_NORMAL)) { turnedOff = false; XLog.i("[screen] pannello telefono RIACCESO (Win+P)"); }
-                } else {
-                    if (setInternalPower(POWER_MODE_OFF))    { turnedOff = true;  XLog.i("[screen] pannello telefono SPENTO (Win+P)"); }
-                }
-            }
-        });
     }
 
     // ------------------------------------------------------------------
@@ -192,6 +271,18 @@ public final class PhoneScreen {
     private static synchronized Handler handler() {
         if (handler == null) {
             HandlerThread t = new HandlerThread("HyperDesktop-screen");
+            // In system_server un'eccezione non gestita su un thread ucciderebbe il
+            // processo. Qui la fermiamo: chiudiamo il touchpad (il telefono torna
+            // usabile) e il thread viene ricreato al bisogno.
+            t.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                @Override public void uncaughtException(Thread th, Throwable e) {
+                    try { XLog.e("[screen] eccezione non gestita sul thread, chiudo il touchpad", e); } catch (Throwable ignored) {}
+                    try { Touchpad.hide(); } catch (Throwable ignored) {}
+                    if (touchpadMode) { touchpadMode = false; turnedOff = false; }
+                    receiverRegistered = false;   // il vecchio receiver usava il Looper morto
+                    synchronized (PhoneScreen.class) { handler = null; }
+                }
+            });
             t.start();
             handler = new Handler(t.getLooper());
         }

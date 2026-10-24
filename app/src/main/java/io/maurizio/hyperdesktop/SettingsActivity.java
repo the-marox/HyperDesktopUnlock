@@ -31,6 +31,7 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -104,6 +105,10 @@ public class SettingsActivity extends Activity {
         section(R.string.section_phone);
         toggle(R.string.phone_off_title, R.string.phone_off_summary,
                Prefs.K_PHONE_OFF, Prefs.D_PHONE_OFF, false);
+        toggle(R.string.touchpad_title, R.string.touchpad_summary,
+               Prefs.K_TOUCHPAD, Prefs.D_TOUCHPAD, true);
+        sliderField(R.string.touchpad_sens_title, R.string.touchpad_sens_summary, Prefs.K_TOUCHPAD_SENS,
+                Prefs.SENS_MIN, Prefs.SENS_MAX, Prefs.SENS_DEFAULT);
         toggle(R.string.keep_awake_title, R.string.keep_awake_summary,
                Prefs.K_KEEP_AWAKE, Prefs.D_KEEP_AWAKE, true);
 
@@ -563,6 +568,42 @@ public class SettingsActivity extends Activity {
         t.setPadding(0, dp(28), 0, dp(4));
         t.setAlpha(0.7f);
         root.addView(t);
+    }
+
+    /**
+     * Cursore min..max salvato come stringa. Il valore si vede mentre lo trascini;
+     * viene salvato e mandato a system_server quando lo rilasci.
+     */
+    private void sliderField(final int titleRes, int summaryRes, final String key,
+                             final int min, final int max, final int def) {
+        int saved;
+        try { saved = Integer.parseInt(prefs.getString(key, String.valueOf(def)).trim()); }
+        catch (Throwable t) { saved = def; }
+        saved = Math.max(min, Math.min(max, saved));
+
+        final TextView title = new TextView(this);
+        title.setText(getString(titleRes, saved, max));
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        title.setPadding(0, dp(12), 0, 0);
+        root.addView(title);
+
+        final SeekBar bar = new SeekBar(this);
+        bar.setMin(min);
+        bar.setMax(max);
+        bar.setProgress(saved);
+        bar.setPadding(dp(8), dp(10), dp(8), dp(10));
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar s, int v, boolean fromUser) {
+                title.setText(getString(titleRes, v, max));
+            }
+            @Override public void onStartTrackingTouch(SeekBar s) {}
+            @Override public void onStopTrackingTouch(SeekBar s) {
+                prefs.edit().putString(key, String.valueOf(s.getProgress())).commit();   // prima del broadcast
+                applyNow();
+            }
+        });
+        root.addView(bar, matchWidth());
+        small(getString(summaryRes));
     }
 
     private void label(int res) {

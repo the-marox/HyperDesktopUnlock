@@ -18,6 +18,10 @@
     <string name="section_phone">Telefono</string>
     <string name="phone_off_title">Spegni lo schermo del telefono in modalità desktop</string>
     <string name="phone_off_summary">Il telefono resta acceso. Premi due volte il tasto di accensione, o Win+P, per riavere lo schermo.</string>
+    <string name="touchpad_title">Usa il telefono come touchpad</string>
+    <string name="touchpad_summary">Quando lo schermo del telefono si spegne in modalità desktop, resta nero ma continua a rispondere al tocco: un dito muove il puntatore sul monitor, un tocco fa clic, due dita scorrono, un tocco con due dita è il clic destro; per trascinare tocca una volta, poi tocca e muovi. Tre dita o Win+P ti ridanno il telefono. Consuma un po\' più batteria dello schermo spento del tutto.</string>
+    <string name="touchpad_sens_title">Sensibilità del touchpad: %1$d su %2$d</string>
+    <string name="touchpad_sens_summary">Più alta = il puntatore si sposta di più a parità di movimento del dito. Vale appena rilasci il cursore, anche con il touchpad attivo. Si sommano anche velocità e accelerazione del puntatore di sistema.</string>
     <string name="keep_awake_title">Tieni acceso il monitor</string>
     <string name="keep_awake_summary">Ignora lo spegnimento automatico dello schermo in modalità desktop. Attivalo se il monitor si spegne quando non usi mouse o tastiera. Il tasto di accensione funziona comunque.</string>
 

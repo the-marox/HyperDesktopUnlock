@@ -62,11 +62,17 @@ final class SwitcherOverlay {
             if (wm == null) return false;
 
             float d = dctx.getResources().getDisplayMetrics().density;
-            bar = buildBar(dctx, items, selected, d);
+            int screenW = wm.getCurrentWindowMetrics().getBounds().width();
+            int perRow = Math.max(2, (int) ((screenW * 0.9f - px(2 * BAR_PAD, d)) / px(TILE_W, d)));
+            bar = buildBar(dctx, items, selected, d, perRow);
 
+            // Dimensioni esatte, non WRAP_CONTENT: per le finestre WRAP_CONTENT Android
+            // parte da una larghezza "da dialogo" e la barra veniva tagliata a destra.
+            bar.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
             WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                bar.getMeasuredWidth(),
+                bar.getMeasuredHeight(),
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
@@ -113,24 +119,38 @@ final class SwitcherOverlay {
     }
 
     // ------------------------------------------------------------------
-    private static LinearLayout buildBar(Context ctx, List<AltTabHooks.Task> items, int selected, float d) {
-        LinearLayout row = new LinearLayout(ctx);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        int pad = px(12, d);
-        row.setPadding(pad, pad, pad, pad);
+    private static final int BAR_PAD  = 12;                    // dp
+    private static final int TILE_PAD = 10;                    // dp
+    private static final int LABEL_W  = 96;                    // dp, piu' largo dell'icona (72)
+    private static final int TILE_W   = LABEL_W + 2 * TILE_PAD;
+
+    /** Barra con le tessere; se le app non stanno in una riga, va a capo (come Windows). */
+    private static LinearLayout buildBar(Context ctx, List<AltTabHooks.Task> items, int selected,
+                                         float d, int perRow) {
+        LinearLayout box = new LinearLayout(ctx);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER_HORIZONTAL);             // l'ultima riga, se piu' corta, al centro
+        int pad = px(BAR_PAD, d);
+        box.setPadding(pad, pad, pad, pad);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(BAR_BG);
         bg.setCornerRadius(px(18, d));
-        row.setBackground(bg);
+        box.setBackground(bg);
 
+        LinearLayout row = null;
         tiles = new View[items.size()];
         for (int i = 0; i < items.size(); i++) {
             AltTabHooks.Task t = items.get(i);
+            if (i % perRow == 0) {
+                row = new LinearLayout(ctx);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                box.addView(row);
+            }
 
             LinearLayout tile = new LinearLayout(ctx);
             tile.setOrientation(LinearLayout.VERTICAL);
             tile.setGravity(Gravity.CENTER_HORIZONTAL);
-            int tp = px(10, d);
+            int tp = px(TILE_PAD, d);
             tile.setPadding(tp, tp, tp, tp);
             if (i == selected) tile.setBackground(selectedBg(d));
 
@@ -148,7 +168,7 @@ final class SwitcherOverlay {
             label.setSingleLine(true);
             label.setEllipsize(android.text.TextUtils.TruncateAt.END);
             label.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams lpL = new LinearLayout.LayoutParams(px(96, d),
+            LinearLayout.LayoutParams lpL = new LinearLayout.LayoutParams(px(LABEL_W, d),
                     LinearLayout.LayoutParams.WRAP_CONTENT);
             lpL.topMargin = px(6, d);
             tile.addView(label, lpL);
@@ -156,7 +176,7 @@ final class SwitcherOverlay {
             row.addView(tile);
             tiles[i] = tile;
         }
-        return row;
+        return box;
     }
 
     private static Drawable selectedBg(float d) {

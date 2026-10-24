@@ -39,6 +39,8 @@ final class Prefs {
     static final String K_PHONE_OFF      = "phone_screen_off";
     static final String K_SHORTCUTS      = "shortcuts";
     static final String K_SWITCHER       = "switcher_preview";
+    static final String K_TOUCHPAD       = "touchpad";
+    static final String K_TOUCHPAD_SENS  = "touchpad_sensitivity";   // "1".."20", assente = SENS_DEFAULT
     static final String K_DENSITY        = "monitor_density";
     static final String K_RESOLUTION     = "monitor_resolution";
     static final String K_REFRESH        = "monitor_refresh";
@@ -51,6 +53,7 @@ final class Prefs {
     static final boolean D_PHONE_OFF     = true;
     static final boolean D_SHORTCUTS     = true;
     static final boolean D_SWITCHER      = true;
+    static final boolean D_TOUCHPAD      = false;
     static final boolean D_KEEP_AWAKE    = false;
 
     /**
@@ -131,6 +134,12 @@ final class Prefs {
     static boolean shortcuts()     { return bool(K_SHORTCUTS, D_SHORTCUTS); }
     static boolean switcherPreview() { return bool(K_SWITCHER, D_SWITCHER); }
     static boolean keepAwake()     { return bool(K_KEEP_AWAKE, D_KEEP_AWAKE); }
+    static boolean touchpad()      { return bool(K_TOUCHPAD, D_TOUCHPAD); }
+    static final int SENS_MIN = 1, SENS_MAX = 20, SENS_DEFAULT = 6;
+    static int     touchpadSensitivity() {
+        int v = integer(K_TOUCHPAD_SENS, SENS_DEFAULT);
+        return Math.max(SENS_MIN, Math.min(SENS_MAX, v));
+    }
     static int     density()       { return integer(K_DENSITY, DENSITY_INVALID); }
 
     /** Per la riga di diagnostica; null se questo processo non usa le impostazioni. */
