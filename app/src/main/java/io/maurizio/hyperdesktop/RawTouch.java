@@ -39,7 +39,8 @@ import de.robv.android.xposed.XposedHelpers;
  *
  * Protocollo multitouch B (slot). Le coordinate grezze si convertono in pixel del
  * telefono con gli assi letti dallo stato di InputReader ("Raw Touch Axes") e
- * ruotate secondo l'orientamento attuale dello schermo. Ogni SYN_REPORT diventa
+ * ruotate secondo l'orientamento attuale dello schermo (coordinate assolute, come
+ * quelle delle finestre). Ogni SYN_REPORT diventa
  * un "fotogramma" (dita appoggiate e posizioni) per Touchpad.onFrame().
  *
  * system_server puo' leggere /dev/input (gruppo input, e' il suo stesso dominio
@@ -64,6 +65,7 @@ final class RawTouch {
 
     private final String path;
     private final float scaleX, scaleY;
+    private final int naturalW, naturalH;   // px del telefono in verticale
     private final Display display;
     private final Listener listener;
     private volatile boolean running = true;
@@ -80,8 +82,9 @@ final class RawTouch {
     private final int[] fIds = new int[SLOTS];
     private final float[] fX = new float[SLOTS], fY = new float[SLOTS];
 
-    private RawTouch(String path, float scaleX, float scaleY, Display display, Listener l) {
+    private RawTouch(String path, float scaleX, float scaleY, int naturalW, int naturalH, Display display, Listener l) {
         this.path = path; this.scaleX = scaleX; this.scaleY = scaleY; this.display = display; this.listener = l;
+        this.naturalW = naturalW; this.naturalH = naturalH;
         for (int i = 0; i < SLOTS; i++) slotId[i] = -1;
     }
 
@@ -102,7 +105,7 @@ final class RawTouch {
             int ph = Math.max(mode.getPhysicalWidth(), mode.getPhysicalHeight());
             float sx = pw / (float) (axes[1] - axes[0] + 1);
             float sy = ph / (float) (axes[3] - axes[2] + 1);
-            RawTouch r = new RawTouch(node, sx, sy, phone, l);
+            RawTouch r = new RawTouch(node, sx, sy, pw, ph, phone, l);
             r.open();
             XLog.i("[touchpad] lettura diretta da " + node + " (" + name + "), scala " + sx + " x " + sy);
             return r;
@@ -206,11 +209,11 @@ final class RawTouch {
             if (slotId[i] < 0) continue;
             float x = slotX[i] * scaleX, y = slotY[i] * scaleY;   // pixel, orientamento naturale
             float rx, ry;
-            switch (rot) {   // come InputReader: coordinate dello schermo ruotato (bastano le differenze)
-                case Surface.ROTATION_90:  rx = y;  ry = -x; break;
-                case Surface.ROTATION_180: rx = -x; ry = -y; break;
-                case Surface.ROTATION_270: rx = -y; ry = x;  break;
-                default:                   rx = x;  ry = y;  break;
+            switch (rot) {   // come InputReader: coordinate assolute dello schermo ruotato
+                case Surface.ROTATION_90:  rx = y;              ry = naturalW - x; break;
+                case Surface.ROTATION_180: rx = naturalW - x;   ry = naturalH - y; break;
+                case Surface.ROTATION_270: rx = naturalH - y;   ry = x;            break;
+                default:                   rx = x;              ry = y;            break;
             }
             fIds[n] = slotId[i]; fX[n] = rx; fY[n] = ry;
             n++;

@@ -91,7 +91,9 @@ final class Touchpad {
     private static Handler imeHandler;
     /** Cambia a ogni show/hide: i controlli della sessione precedente si fermano. */
     private static volatile int session;
-    private static volatile int imeHeight;
+    /** Stato della tastiera applicato alla finestra (vedi ImePoll): 0 = nessuna. */
+    private static volatile int imeKey;
+    private static volatile Object wms, wmLock;
     private static volatile boolean imeErrorLogged;
     private static volatile Object wmInternal;
 
@@ -152,7 +154,10 @@ final class Touchpad {
 
         wm = w; wlp = lp; root = v; mouse = m;
         resetGesture();
-        imeHeight = 0;
+        imeKey = 0;
+        padBottom = Integer.MAX_VALUE;
+        ExternalDisplayGate.imeLogged = 0;   // diagnostica: righe [ime] di nuovo per questa sessione
+        imeErrorLogged = false;
         active = true;
         try {
             // Movimenti consegnati appena arrivano, non raggruppati al prossimo
@@ -213,16 +218,16 @@ final class Touchpad {
             try {
                 // Sempre, anche con l'opzione spenta: se una tastiera e' comunque sul
                 // telefono (es. opzione appena spenta), non deve restare sotto il nero.
-                int h = imeVisibleHeight();
-                imeProbeOk = h >= 0;
-                if (h < 0) h = 0;
-                final int fh = h;
+                final int top = imeTop();                       // finestra della tastiera
+                final int h = top < 0 ? imeVisibleHeight() : 0; // riserva: altezza dagli inset
+                imeProbeOk = top >= 0 || h >= 0;
+                final int key = top > 0 ? top : (h > 0 ? -h : 0);
                 Handler u = ui;
-                if (fh != imeHeight && u != null) {
+                if (key != imeKey && u != null) {
                     u.post(new Runnable() {
                         @Override public void run() {
                             if (s != session) return;
-                            try { applyImeHeight(fh); }
+                            try { applyIme(key, top, h); }
                             catch (Throwable t) { XLog.e("[touchpad] adattamento alla tastiera fallito", t); }
                         }
                     });
@@ -248,6 +253,58 @@ final class Touchpad {
         return imeHandler;
     }
 
+    /**
+     * Dove inizia la tastiera sul telefono, letto dalla sua finestra (y in px;
+     * 0 = nessuna tastiera visibile; -1 = non leggibile). Funziona anche quando il
+     * campo di testo e' sul monitor, a differenza degli inset del telefono.
+     */
+    private static int imeTop() {
+        try {
+            if (wms == null) {
+                Object w = XposedHelpers.callStaticMethod(
+                    XposedHelpers.findClass("android.os.ServiceManager", null), "getService", "window");
+                wmLock = XposedHelpers.getObjectField(w, "mGlobalLock");
+                wms = w;
+            }
+            synchronized (wmLock) {
+                Object rootC = XposedHelpers.getObjectField(wms, "mRoot");
+                Object dc = XposedHelpers.callMethod(rootC, "getDisplayContent", Display.DEFAULT_DISPLAY);
+                if (dc == null) return 0;
+                // Su Android 17 DisplayContent non ha piu' mInputMethodWindow: si scorrono
+                // le finestre del telefono (forAllWindows, presente da Android 8) e si
+                // prende quella di tipo TYPE_INPUT_METHOD visibile.
+                final Object[] found = { null };
+                final boolean[] unreadable = { false };
+                java.util.function.Consumer<Object> c = new java.util.function.Consumer<Object>() {
+                    @Override public void accept(Object ws) {
+                        if (found[0] != null) return;
+                        try {
+                            WindowManager.LayoutParams a = (WindowManager.LayoutParams) XposedHelpers.getObjectField(ws, "mAttrs");
+                            if (a.type != WindowManager.LayoutParams.TYPE_INPUT_METHOD) return;
+                            if ((Boolean) XposedHelpers.callMethod(ws, "isVisible")) found[0] = ws;
+                        } catch (Throwable t) { unreadable[0] = true; }
+                    }
+                };
+                XposedHelpers.callMethod(dc, "forAllWindows", c, true);
+                Object ime = found[0];
+                if (ime == null) {
+                    if (unreadable[0]) throw new IllegalStateException("finestre non leggibili");   // -> riserva
+                    return 0;
+                }
+                Rect f = (Rect) XposedHelpers.callMethod(ime, "getFrame");
+                int top = f.top;
+                try {   // parte trasparente in cima alla finestra della tastiera
+                    Rect ci = (Rect) XposedHelpers.getObjectField(ime, "mGivenContentInsets");
+                    if (ci != null) top += ci.top;
+                } catch (Throwable ignored) {}
+                return Math.max(1, top);
+            }
+        } catch (Throwable t) {
+            if (!imeErrorLogged) { imeErrorLogged = true; XLog.e("[touchpad] finestra della tastiera non leggibile, uso gli inset", t); }
+            return -1;
+        }
+    }
+
     /** Altezza visibile della tastiera sul display del telefono (0 = chiusa, -1 = non leggibile). */
     private static int imeVisibleHeight() {
         try {
@@ -267,11 +324,15 @@ final class Touchpad {
     }
 
     /** Accorcia la finestra nera sopra la tastiera, o la riporta a tutto schermo. */
-    private static void applyImeHeight(int h) {
-        if (wm == null || wlp == null || root == null || h == imeHeight) return;
-        if (h > 0) {
-            android.view.WindowMetrics wmx = wm.getCurrentWindowMetrics();
-            int screenH = wmx.getBounds().height();
+    private static void applyIme(int key, int top, int h) {
+        if (wm == null || wlp == null || root == null || key == imeKey) return;
+        android.view.WindowMetrics wmx0 = wm.getCurrentWindowMetrics();
+        int screenH0 = wmx0.getBounds().height();
+        if (top > 0) {
+            wlp.height = Math.max(screenH0 / 4, Math.min(top, screenH0));
+        } else if (h > 0) {
+            android.view.WindowMetrics wmx = wmx0;
+            int screenH = screenH0;
             // L'altezza riportata parte dal bordo superiore della barra di navigazione.
             // Una finestra sopra la barra non ne riceve gli inset: si leggono quelli
             // del display (WindowMetrics), con quelli della finestra come riserva.
@@ -285,9 +346,11 @@ final class Touchpad {
             wlp.height = WindowManager.LayoutParams.MATCH_PARENT;
         }
         wm.updateViewLayout(root, wlp);
-        imeHeight = h;   // solo se riuscito: altrimenti si riprova al prossimo controllo
-        XLog.i(h > 0 ? "[touchpad] tastiera sul telefono (" + h + " px): touchpad ridotto a " + wlp.height + " px"
-                     : "[touchpad] tastiera chiusa: touchpad a tutto schermo");
+        imeKey = key;   // solo se riuscito: altrimenti si riprova al prossimo controllo
+        padBottom = wlp.height > 0 ? wlp.height : Integer.MAX_VALUE;
+        XLog.i(key != 0 ? "[touchpad] tastiera sul telefono (" + (top > 0 ? "inizia a y=" + top : "alta " + h + " px")
+                              + "): touchpad ridotto a " + wlp.height + " px"
+                        : "[touchpad] tastiera chiusa: touchpad a tutto schermo");
     }
 
     // ------------------------------------------------------------------
@@ -396,12 +459,45 @@ final class Touchpad {
     private static float   gDist;
     private static volatile String gSource = "finestra";
 
+    /**
+     * Fondo dell'area del touchpad sul telefono (px): sotto c'e' la tastiera.
+     * Il driver vede TUTTE le dita, anche quelle sulla tastiera: un dito che si
+     * appoggia sotto questo limite non e' del touchpad (altrimenti ogni tasto
+     * diventerebbe un clic sul monitor e toglierebbe il focus al campo di testo).
+     */
+    private static volatile int padBottom = Integer.MAX_VALUE;
+
+    // dita ignorate perche' appoggiate sulla tastiera (solo thread del driver)
+    private static final int[] skipIds = new int[MAXP];
+    private static int skipN;
+    private static final int[] fIds = new int[MAXP];
+    private static final float[] fX = new float[MAXP], fY = new float[MAXP];
+    private static final int[] seenIds = new int[MAXP];
+    private static int seenN;
+
     private static final RawTouch.Listener RAW_LISTENER = new RawTouch.Listener() {
         @Override public void onFrame(long t, int n, int[] ids, float[] xs, float[] ys) {
-            try { gSource = "driver"; frame(t, n, ids, xs, ys); }
+            try {
+                gSource = "driver";
+                int limit = padBottom, keep = 0, newSkipN = 0;
+                int[] newSkip = new int[MAXP];
+                for (int i = 0; i < n && i < MAXP; i++) {
+                    int id = ids[i];
+                    boolean known = indexOf(seenIds, seenN, id) >= 0;
+                    boolean skip = known ? indexOf(skipIds, skipN, id) >= 0 : ys[i] >= limit;
+                    if (skip) { newSkip[newSkipN++] = id; continue; }
+                    fIds[keep] = id; fX[keep] = xs[i]; fY[keep] = ys[i]; keep++;
+                }
+                System.arraycopy(newSkip, 0, skipIds, 0, newSkipN);
+                skipN = newSkipN;
+                seenN = Math.min(n, MAXP);
+                System.arraycopy(ids, 0, seenIds, 0, seenN);
+                frame(t, keep, fIds, fX, fY);
+            }
             catch (Throwable e) { XLog.e("[touchpad] gestione del gesto (driver)", e); }
         }
         @Override public void onReset(long t) {
+            skipN = 0; seenN = 0;
             try { resetStream(t, "interrotto"); } catch (Throwable ignored) {}
         }
     };

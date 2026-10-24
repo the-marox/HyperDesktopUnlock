@@ -94,14 +94,59 @@ public final class ExternalDisplayGate {
                         int id = externalId;
                         if (id > 0 && displayIdOf(p.thisObject) == id) {
                             p.setResult(1);   // WindowManager.DISPLAY_IME_POLICY_FALLBACK_DISPLAY
+                            if (imeLogged++ < 12) XLog.i("[ime] politica del monitor: tastiera sul telefono");
                         }
                     }
                 });
                 n++;
             } catch (Throwable t) { XLog.e("[gate] hook getImePolicy fallito", t); }
         }
-        XLog.i("[gate] tastiera sul telefono: " + n + " hook su getImePolicy");
-        Diag.mark("ime-on-phone", n > 0);
+        int imms = hookImeDisplayChoice(dc.getClassLoader());
+        XLog.i("[gate] tastiera sul telefono: " + n + " hook su getImePolicy, " + imms + " sulla scelta del servizio tastiere");
+        Diag.mark("ime-on-phone", n + imms > 0);
+    }
+
+    /** Righe [ime] gia' scritte in questa sessione del touchpad (azzerato da Touchpad.show). */
+    static volatile int imeLogged;
+
+    /**
+     * Il servizio delle tastiere (InputMethodManagerService) puo' decidere lo
+     * schermo senza richiedere ogni volta la politica al window manager (la tiene
+     * in memoria per display). Si aggancia il punto finale della scelta:
+     * computeImeDisplayIdForTarget(displayId, ...) -> display su cui mostrarla.
+     */
+    private static int hookImeDisplayChoice(ClassLoader cl) {
+        String[] classes = {
+            "com.android.server.inputmethod.InputMethodManagerService",
+            "com.android.server.inputmethod.InputMethodBindingController",
+            "com.android.server.inputmethod.ImeVisibilityStateComputer",
+            "com.android.server.inputmethod.InputMethodUtils",
+        };
+        int n = 0;
+        for (String cn : classes) {
+            Class<?> c = XposedHelpers.findClassIfExists(cn, cl);
+            if (c == null) continue;
+            for (Method m : c.getDeclaredMethods()) {
+                Class<?>[] pt = m.getParameterTypes();
+                if (!m.getName().contains("computeImeDisplayId") || pt.length == 0 || pt[0] != int.class
+                        || m.getReturnType() != int.class) continue;
+                try {
+                    XposedBridge.hookMethod(m, new XC_MethodHook() {
+                        @Override protected void afterHookedMethod(MethodHookParam p) {
+                            if (!Touchpad.active || !Touchpad.keyboardOnPhone || !Touchpad.imeProbeOk) return;
+                            int id = externalId;
+                            if (id <= 0 || !(p.args[0] instanceof Integer) || (Integer) p.args[0] != id) return;
+                            Object r = p.getResult();
+                            if (r instanceof Integer && (Integer) r == 0) return;
+                            p.setResult(0);   // Display.DEFAULT_DISPLAY: la tastiera va sul telefono
+                            if (imeLogged++ < 12) XLog.i("[ime] tastiera del monitor (display " + id + ") spostata sul telefono (era " + r + ")");
+                        }
+                    });
+                    n++;
+                } catch (Throwable t) { XLog.e("[gate] hook " + m.getName() + " fallito", t); }
+            }
+        }
+        return n;
     }
 
     private static boolean isExternal(Object displayContent) {
