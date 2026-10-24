@@ -102,6 +102,15 @@ final class Touchpad {
     static volatile boolean keyboardOnPhone = true;
     /** L'altezza della tastiera si legge su questa build: senza, non la si sposta sul telefono. */
     static volatile boolean imeProbeOk;
+    /**
+     * Serve davvero la tastiera a schermo: nessuna tastiera fisica (o l'opzione di
+     * sistema "mostra anche con la tastiera fisica"). Con una tastiera fisica la
+     * tastiera NON va spostata sul telefono: i tasti fisici passano comunque dal
+     * servizio della tastiera, e dietro lo schermo nero arrivavano a raffiche o si
+     * perdevano.
+     */
+    static volatile boolean softKeyboardWanted = true;
+    private static volatile boolean lastSoftLogged = true;
     private static float gain = GAIN_PER_STEP * Prefs.SENS_DEFAULT;
 
     // ------------------------------------------------------------------
@@ -157,6 +166,8 @@ final class Touchpad {
         imeKey = 0;
         padBottom = Integer.MAX_VALUE;
         ExternalDisplayGate.imeLogged = 0;   // diagnostica: righe [ime] di nuovo per questa sessione
+        lastSoftLogged = true;
+        updateSoftKeyboardWanted();          // prima che l'hook possa spostare la tastiera
         imeErrorLogged = false;
         active = true;
         try {
@@ -216,6 +227,7 @@ final class Touchpad {
         @Override public void run() {
             if (s != session) return;
             try {
+                updateSoftKeyboardWanted();
                 // Sempre, anche con l'opzione spenta: se una tastiera e' comunque sul
                 // telefono (es. opzione appena spenta), non deve restare sotto il nero.
                 final int top = imeTop();                       // finestra della tastiera
@@ -251,6 +263,36 @@ final class Touchpad {
             imeHandler = new Handler(t.getLooper());
         }
         return imeHandler;
+    }
+
+    /** Come decidono le tastiere: tastiera fisica collegata e non nascosta = niente tastiera a schermo. */
+    private static void updateSoftKeyboardWanted() {
+        boolean wanted = true;
+        try {
+            Context sys = sysContext();
+            if (sys != null) {
+                android.content.res.Configuration c = sys.getResources().getConfiguration();
+                boolean hard = c.keyboard == android.content.res.Configuration.KEYBOARD_QWERTY
+                        && c.hardKeyboardHidden == android.content.res.Configuration.HARDKEYBOARDHIDDEN_NO;
+                boolean showAnyway = android.provider.Settings.Secure.getInt(
+                        sys.getContentResolver(), "show_ime_with_hard_keyboard", 0) == 1;
+                wanted = !hard || showAnyway;
+            }
+        } catch (Throwable ignored) {}
+        softKeyboardWanted = wanted;
+        if (wanted != lastSoftLogged) {
+            lastSoftLogged = wanted;
+            XLog.i(wanted ? "[ime] nessuna tastiera fisica: la tastiera a schermo va sul telefono"
+                          : "[ime] tastiera fisica collegata: la tastiera resta dov'e' (niente spostamento)");
+        }
+    }
+
+    private static Context sysContext() {
+        try {
+            Object at = XposedHelpers.callStaticMethod(
+                XposedHelpers.findClass("android.app.ActivityThread", null), "currentActivityThread");
+            return (Context) XposedHelpers.callMethod(at, "getSystemContext");
+        } catch (Throwable t) { return null; }
     }
 
     /**

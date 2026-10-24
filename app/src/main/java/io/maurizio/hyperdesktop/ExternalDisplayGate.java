@@ -90,7 +90,7 @@ public final class ExternalDisplayGate {
             try {
                 XposedBridge.hookMethod(m, new XC_MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
-                        if (!Touchpad.active || !Touchpad.keyboardOnPhone || !Touchpad.imeProbeOk) return;
+                        if (!Touchpad.active || !Touchpad.keyboardOnPhone || !Touchpad.imeProbeOk || !Touchpad.softKeyboardWanted) return;
                         int id = externalId;
                         if (id > 0 && displayIdOf(p.thisObject) == id) {
                             p.setResult(1);   // WindowManager.DISPLAY_IME_POLICY_FALLBACK_DISPLAY
@@ -133,7 +133,7 @@ public final class ExternalDisplayGate {
                 try {
                     XposedBridge.hookMethod(m, new XC_MethodHook() {
                         @Override protected void afterHookedMethod(MethodHookParam p) {
-                            if (!Touchpad.active || !Touchpad.keyboardOnPhone || !Touchpad.imeProbeOk) return;
+                            if (!Touchpad.active || !Touchpad.keyboardOnPhone || !Touchpad.imeProbeOk || !Touchpad.softKeyboardWanted) return;
                             int id = externalId;
                             if (id <= 0 || !(p.args[0] instanceof Integer) || (Integer) p.args[0] != id) return;
                             Object r = p.getResult();
