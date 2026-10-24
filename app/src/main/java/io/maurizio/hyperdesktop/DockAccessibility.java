@@ -26,7 +26,8 @@ import de.robv.android.xposed.XposedHelpers;
  *
  * I servizi di accessibilita' attivi partono sempre al boot: senza questa
  * gestione il dock compare anche sul telefono all'accensione. Qui:
- *  - collegamento in desktop  -> servizio attivato (prima che parta il launcher);
+ *  - collegamento in desktop  -> servizio attivato, 4 s dopo (a configurazione del
+ *                                monitor gia' applicata: vedi ENABLE_DELAY_MS);
  *  - cavo staccato            -> servizio disattivato;
  *  - avvio senza monitor      -> se e' rimasto attivo, viene disattivato.
  * Il servizio viene cercato dinamicamente nel pacchetto del dock scelto nelle
@@ -39,18 +40,28 @@ final class DockAccessibility {
     private static final String KEY_SERVICES = "enabled_accessibility_services";
     private static final String KEY_ENABLED  = "accessibility_enabled";
     private static final int[]  BOOT_CHECK_MS = { 30_000, 90_000 };
+    /**
+     * Attesa prima di attivare il servizio al collegamento: densita', risoluzione e
+     * frequenza del monitor (DesktopSession, a 1,5 s) devono essere gia' applicate.
+     * Se il servizio riceve un cambio di configurazione mentre si avvia, SmartDock
+     * va in crash (DockService.onConfigurationChanged prima di onServiceConnected:
+     * "lateinit property context"), si riavvia, e intanto i tasti della tastiera
+     * fisica, che passano dal servizio, restano in attesa e arrivano a raffiche.
+     */
+    private static final int ENABLE_DELAY_MS = 4000;
 
     private static Handler handler;
     /** Servizio gestito in questa sessione desktop (solo thread handler). */
     private static ComponentName managed;
 
     static void onExternalAdded() {
-        handler().post(new Runnable() {
+        handler().postDelayed(new Runnable() {
             @Override public void run() {
+                if (!ExternalDisplayGate.present) return;   // cavo staccato nel frattempo
                 ComponentName svc = current();
                 if (svc != null && set(svc, true, "collegamento")) managed = svc;
             }
-        });
+        }, ENABLE_DELAY_MS);
     }
 
     static void onExternalRemoved() {
