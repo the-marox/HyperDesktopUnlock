@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monitor: schermo con supporto -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+        android:pathData="M3,3h18a1,1 0 0,1 1,1v12a1,1 0 0,1 -1,1H3a1,1 0 0,1 -1,-1V4a1,1 0 0,1 1,-1z M4,5v10h16V5z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M10,17h4v2h3v2H7v-2h3z" />
+</vector>

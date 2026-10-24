@@ -31,6 +31,7 @@ public class MainHook implements IXposedHookLoadPackage {
                 safe("mirror-guard",  () -> SettingsGuardHooks.hook(lp));
                 safe("mirror-policy", () -> MirrorPolicyHooks.hook(lp));
                 safe("keys",          () -> AltTabHooks.hook(lp));
+                safe("control",       ModuleControl::startSystemServer);
                 Prefs.warmUp();
                 Diag.summary("system_server");
                 break;
@@ -38,6 +39,7 @@ public class MainHook implements IXposedHookLoadPackage {
                 safe("desktop-flags", () -> DesktopModeHooks.hook(lp, "systemui"));
                 safe("dialog",        () -> ConnectDialogHooks.hook(lp));
                 safe("auto-launch",   () -> LauncherHooks.hook(lp));
+                safe("report",        () -> ModuleControl.hookSystemUi(lp));
                 Prefs.warmUp();
                 Diag.summary(lp.processName);
                 break;

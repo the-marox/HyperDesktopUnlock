@@ -74,6 +74,34 @@ public final class ExternalDisplayGate {
         }
         XLog.i("[gate] hook installati (" + ctors + " costruttori + " + n + " metodi di rimozione)");
         Diag.mark("gate", ctors > 0 && n > 0);
+        hookImePolicy(dc);
+    }
+
+    /**
+     * Tastiera sul telefono: mentre il touchpad e' attivo il monitor risponde
+     * "tastiera sul display principale" (FALLBACK_DISPLAY). Solo in memoria: non
+     * tocca le impostazioni salvate, e smette appena il touchpad si chiude.
+     * Gira sotto il lock del WindowManager: legge solo campi volatili.
+     */
+    private static void hookImePolicy(Class<?> dc) {
+        int n = 0;
+        for (Method m : dc.getDeclaredMethods()) {
+            if (!m.getName().equals("getImePolicy") || m.getParameterTypes().length != 0) continue;
+            try {
+                XposedBridge.hookMethod(m, new XC_MethodHook() {
+                    @Override protected void afterHookedMethod(MethodHookParam p) {
+                        if (!Touchpad.active || !Touchpad.keyboardOnPhone || !Touchpad.imeProbeOk) return;
+                        int id = externalId;
+                        if (id > 0 && displayIdOf(p.thisObject) == id) {
+                            p.setResult(1);   // WindowManager.DISPLAY_IME_POLICY_FALLBACK_DISPLAY
+                        }
+                    }
+                });
+                n++;
+            } catch (Throwable t) { XLog.e("[gate] hook getImePolicy fallito", t); }
+        }
+        XLog.i("[gate] tastiera sul telefono: " + n + " hook su getImePolicy");
+        Diag.mark("ime-on-phone", n > 0);
     }
 
     private static boolean isExternal(Object displayContent) {

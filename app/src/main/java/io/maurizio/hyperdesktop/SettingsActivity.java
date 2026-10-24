@@ -8,6 +8,8 @@ package io.maurizio.hyperdesktop;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -15,6 +17,7 @@ import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.hardware.display.DisplayManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.InputType;
@@ -45,6 +48,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -109,6 +114,9 @@ public class SettingsActivity extends Activity {
                Prefs.K_TOUCHPAD, Prefs.D_TOUCHPAD, true);
         sliderField(R.string.touchpad_sens_title, R.string.touchpad_sens_summary, Prefs.K_TOUCHPAD_SENS,
                 Prefs.SENS_MIN, Prefs.SENS_MAX, Prefs.SENS_DEFAULT);
+        toggle(R.string.phone_keyboard_title, R.string.phone_keyboard_summary,
+               Prefs.K_PHONE_KEYBOARD, Prefs.D_PHONE_KEYBOARD, true);
+        note(getString(R.string.tiles_hint));
         toggle(R.string.keep_awake_title, R.string.keep_awake_summary,
                Prefs.K_KEEP_AWAKE, Prefs.D_KEEP_AWAKE, true);
 
@@ -136,8 +144,151 @@ public class SettingsActivity extends Activity {
         note(getString(R.string.shortcuts_list));
         toggle(R.string.switcher_title, R.string.switcher_summary, Prefs.K_SWITCHER, Prefs.D_SWITCHER, false);
 
+        section(R.string.section_diag);
+        diagnosticsRow();
+
         section(R.string.section_updates);
         updatesRow();
+    }
+
+    // ------------------------------------------------------------------
+    // diagnostica
+    // ------------------------------------------------------------------
+    private static final String ISSUES_URL = "https://github.com/the-marox/HyperDesktopUnlock/issues/new";
+
+    private void diagnosticsRow() {
+        final TextView status = note(getString(R.string.diag_checking));
+        Button b = new Button(this);
+        b.setAllCaps(false);
+        b.setText(R.string.diag_report_button);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { createReport(); }
+        });
+        root.addView(b, matchWidth());
+        small(getString(R.string.diag_note));
+        ModuleClient.send(this, "status", true, new ModuleClient.Callback() {
+            @Override public void onResult(String data) {
+                if (isFinishing() || isDestroyed()) return;
+                status.setText(statusLine(data));
+            }
+        });
+    }
+
+    /** Una riga per l'utente: tutto a posto, riavvio necessario, o cosa manca. */
+    private String statusLine(String data) {
+        Map<String, String> s = ModuleClient.parse(data);
+        if (s == null) return getString(R.string.diag_no_answer);
+        String loaded = s.get("version");
+        if (loaded != null && !loaded.equals(BuildConfig.VERSION_NAME)) {
+            return getString(R.string.diag_reboot, loaded, BuildConfig.VERSION_NAME);
+        }
+        TreeSet<String> missing = new TreeSet<>();
+        for (String line : data.split("\n")) {
+            if (!line.startsWith("[diag]")) continue;
+            int colon = line.indexOf(": ");
+            String body = colon > 0 ? line.substring(colon + 2) : line;
+            int bar = body.indexOf(" | ");
+            if (bar >= 0) body = body.substring(0, bar);
+            for (String part : body.split(", ")) {
+                if (part.endsWith(" MISSING")) missing.add(part.substring(0, part.length() - 8).trim());
+            }
+        }
+        if (!missing.isEmpty()) return getString(R.string.diag_missing, android.text.TextUtils.join(", ", missing));
+        return getString(R.string.diag_ok, loaded);
+    }
+
+    private void createReport() {
+        final Toast wait = Toast.makeText(this, R.string.diag_collecting, Toast.LENGTH_SHORT);
+        wait.show();
+        ModuleClient.send(this, "status", true, new ModuleClient.Callback() {
+            @Override public void onResult(String data) {
+                if (isFinishing() || isDestroyed()) return;
+                showReport(buildReport(data));
+            }
+        });
+    }
+
+    private String buildReport(String data) {
+        StringBuilder r = new StringBuilder();
+        r.append("HyperDesktop Unlock ").append(BuildConfig.VERSION_NAME)
+         .append(" (").append(BuildConfig.VERSION_CODE).append(")\n");
+        r.append("Phone: ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL)
+         .append(" (").append(Build.DEVICE).append(")\n");
+        r.append("Android ").append(Build.VERSION.RELEASE).append(" (SDK ").append(Build.VERSION.SDK_INT)
+         .append("), build ").append(Build.VERSION.INCREMENTAL).append('\n');
+        String os = getprop("ro.mi.os.version.incremental");
+        if (os.isEmpty()) os = getprop("ro.mi.os.version.name");
+        r.append("HyperOS: ").append(os.isEmpty() ? "?" : os).append('\n');
+        r.append("LSPosed: ").append(Boolean.TRUE.equals(sModuleActive) ? "module active" : "module NOT active").append('\n');
+        r.append("Settings:");
+        if (prefs != null) {
+            for (Map.Entry<String, ?> e : new TreeMap<>(prefs.getAll()).entrySet()) {
+                if (Prefs.K_MODES_CACHE.equals(e.getKey())) continue;
+                r.append(' ').append(e.getKey()).append('=').append(e.getValue()).append(';');
+            }
+        }
+        r.append("\n\n");
+        if (data == null) r.append("No answer from the system: the module is not loaded (reboot after installing or updating it).\n");
+        else r.append(data);
+        return r.toString();
+    }
+
+    private void showReport(final String report) {
+        TextView tv = new TextView(this);
+        tv.setText(report);
+        tv.setTypeface(Typeface.MONOSPACE);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        tv.setTextIsSelectable(true);
+        int pad = dp(16);
+        tv.setPadding(pad, dp(8), pad, dp(8));
+        ScrollView sv = new ScrollView(this);
+        sv.addView(tv);
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.diag_report_title)
+            .setView(sv)
+            .setPositiveButton(R.string.diag_copy, new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    copy(report);
+                    Toast.makeText(SettingsActivity.this, R.string.diag_copied, Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNeutralButton(R.string.diag_issue, new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    copy(report);
+                    Toast.makeText(SettingsActivity.this, R.string.diag_copied_issue, Toast.LENGTH_LONG).show();
+                    String body = "**What happened**\n\n\n**Diagnostic report** (copied by the app: paste it between the lines)\n\n```\n\n```\n";
+                    String url = ISSUES_URL + "?body=" + Uri.encode(body);
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Throwable ignored) {}
+                }
+            })
+            .setNegativeButton(R.string.diag_share, new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain")
+                            .putExtra(Intent.EXTRA_SUBJECT, "HyperDesktop Unlock report")
+                            .putExtra(Intent.EXTRA_TEXT, report);
+                    try { startActivity(Intent.createChooser(send, getString(R.string.diag_share))); } catch (Throwable ignored) {}
+                }
+            })
+            .show();
+    }
+
+    private void copy(String text) {
+        try {
+            ClipboardManager cm = getSystemService(ClipboardManager.class);
+            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("HyperDesktop report", text));
+        } catch (Throwable ignored) {}
+    }
+
+    /** Proprieta' di sistema lette con getprop (consentito alle app per quelle pubbliche). */
+    private static String getprop(String key) {
+        try {
+            Process p = Runtime.getRuntime().exec(new String[] { "getprop", key });
+            BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line = r.readLine();
+            r.close();
+            p.waitFor();
+            return line == null ? "" : line.trim();
+        } catch (Throwable t) { return ""; }
     }
 
     // ------------------------------------------------------------------
@@ -614,7 +765,7 @@ public class SettingsActivity extends Activity {
         root.addView(t);
     }
 
-    private void note(String s) {
+    private TextView note(String s) {
         TextView t = new TextView(this);
         t.setText(s);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
@@ -622,6 +773,7 @@ public class SettingsActivity extends Activity {
         t.setPadding(0, dp(8), 0, dp(4));
         t.setAlpha(0.85f);
         root.addView(t);
+        return t;
     }
 
     private void small(String s) {

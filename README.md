@@ -25,6 +25,9 @@ Dell S2725QC over USB-C (DisplayPort Alt Mode).
   shortcuts work. All of it can be changed in the module's settings app.
 - Optional: the phone becomes a **touchpad** for the monitor (its screen stays
   black), with a real system pointer, tap to click, two-finger scroll and right click.
+  Without a physical keyboard, the on-screen **keyboard appears on the phone** below the touchpad.
+- **Quick Settings tiles**: *Monitor* (Computer ↔ Mirroring without unplugging) and *Touchpad*.
+- A **diagnostics report** in the settings app, ready to paste into a GitHub issue.
 
 Pair it with a secondary-display launcher such as
 [SmartDock](https://github.com/axel358/smartdock) (recommended, works very
@@ -56,7 +59,8 @@ places. The module hooks each one (see `app/src/main/java/.../`):
 | `DesktopModeHooks` | SystemUI + system_server | `DesktopModeStatus.isDesktopModeSupported/canEnterDesktopMode` are `false`; `DesktopModeFlags.getToggleOverride()` is `OVERRIDE_UNSET` (the "Enable desktop experience" developer option is hidden) | Forces them to `true` / `OVERRIDE_ON`; per-display checks (`…OnDisplay(displayId)`) only for displays other than the phone's. The framework's global `DesktopModeHelper` gates are left alone |
 | `LauncherHooks` | SystemUI | HyperOS Home is single-display, so the monitor stays empty | When the Desktop choice is applied (`applyConnectionChoice(enableMirroring=false)`, dialog or *Don't ask again*), launches the dock's desktop activity (`SECONDARY_HOME`, e.g. SmartDock `SecondaryLauncherActivity`) on the external display via `ActivityOptions.setLaunchDisplayId`, then any extra apps you listed in the settings. Dock package from the settings (default `cu.axel.smartdock`) |
 | `PhoneScreen` (+ `ExternalDisplayGate`) | system_server | Pressing power puts the whole device to sleep, monitor included | ~2 s after an external **physical** display becomes a desktop display, turns off only the phone's panel (`SurfaceControl.setDisplayPowerMode(internalToken, OFF)`, same technique as scrcpy `--turn-screen-off`), or, with the touchpad option, keeps it on but black (see `Touchpad`); waits for unlock if the phone is locked; restores it when the cable is unplugged, on Win+P and on an incoming call. Once per connection: lock + wake the phone to get its screen back. Virtual displays (screen recording, cast) are ignored |
-| `Touchpad` + `VirtualMouse` | system_server | With the panel powered off the touch sensor sleeps too, and injected mouse events reach apps but don't move the visible pointer | Keeps the panel on under an opaque black, non-focusable `TYPE_SYSTEM_ERROR` window (above status/navigation bars; on OLED black pixels are off at any brightness, and forcing brightness to 0 would put the touch sensor in low-power mode). Touches drive a **virtual HID mouse** created through `/dev/uhid` (like scrcpy `--mouse=uhid`) and tied to the monitor's display (`addUniqueIdAssociationByPort`), so the real system pointer moves, with the system pointer speed. Falls back to powering the panel off if `/dev/uhid` is unavailable |
+| `ModuleControl` | system_server + SystemUI | — | Answers the settings app and the Quick Settings tiles: a signature-permission ordered broadcast, targeted at `android` and then `com.android.systemui`, returns status, the `[diag]` line and recent log lines kept in memory (`XLog`); also switches Computer ↔ Mirroring (`mirror_built_in_display`, bypassing the module's own guard for that write only) and the touchpad |
+| `Touchpad` + `VirtualMouse` | system_server | With the panel powered off the touch sensor sleeps too, and injected mouse events reach apps but don't move the visible pointer | Keeps the panel on under an opaque black, non-focusable `TYPE_SYSTEM_ERROR` window (above status/navigation bars; on OLED black pixels are off at any brightness, and forcing brightness to 0 would put the touch sensor in low-power mode). Touches are read **directly from the touchscreen driver** (`/dev/input/eventN`, path and raw axes taken from InputReader's state; `RawTouch`), because HyperOS cancels the touch stream at the window as soon as the virtual mouse moves; the window's own touches are only a fallback. They drive a **virtual HID mouse** created through `/dev/uhid` (like scrcpy `--mouse=uhid`) and tied to the monitor's display (`addUniqueIdAssociationByPort`), so the real system pointer moves, with the system pointer speed. Falls back to powering the panel off if `/dev/uhid` is unavailable. While it is shown, `DisplayContent.getImePolicy()` answers `FALLBACK_DISPLAY` for the monitor (in memory only), so the on-screen keyboard opens on the phone; the overlay polls `WindowManagerInternal.getInputMethodWindowVisibleHeight(0)` and shrinks above it |
 | `DockAccessibility` | system_server | Enabled accessibility services always start at boot, so the dock would also show up on the phone | Enables the dock's accessibility service (found dynamically in the dock package, e.g. SmartDock `DockService`) when the desktop starts, disables it when the cable is unplugged, and after boot if no monitor is attached. Also re-enables it if HyperOS turned it off |
 | `DesktopSession` | system_server | The monitor keeps its default density (tiny UI on a 4K screen), can run at the wrong resolution/refresh, and the screen timeout can turn it off while you read | On connect, applies the monitor **density** (`setForcedDisplayDensityForUser`, like `wm density`), **logical resolution** (`setForcedDisplaySize`, like `wm size`) and, best-effort, **refresh rate** (`Display.setUserPreferredDisplayMode`, only choosing a mode the monitor actually reports — never a made-up one, so it can't blank the screen) chosen in the settings, each only if it differs from the current value; and, if enabled, holds a screen wake lock while the desktop is active. Changing any of them in the settings app triggers a signature-protected broadcast so system_server applies it at once |
 | `AltTabHooks` | system_server | Alt+Tab is handled by the HyperOS launcher, which lives only on the phone: on the monitor it does nothing | Intercepts Alt+Tab at `InputManagerService.interceptKeyBeforeQueueing` **only** while a desktop display is active and has focus. While you hold Alt, a Windows-style preview bar of the open apps is drawn on the monitor (`SwitcherOverlay`, added from system_server); Tab moves the highlight, Alt+Shift+Tab the other way, and the app is switched when you release Alt. The bar can be turned off, then each Tab switches instantly. If the bar can't be drawn the module falls back to instant switching. On the phone, Alt+Tab is untouched |
@@ -129,6 +133,7 @@ update renamed something) — please include that line in bug reports.
 | Turn off the phone screen in desktop mode | on | Power twice or Win+P brings it back |
 | Use the phone as a touchpad | off | The phone screen stays black instead of off and works as a touchpad for the monitor |
 | Touchpad sensitivity | 6 of 20 | Slider; higher = the pointer travels further. The system pointer speed applies on top |
+| Keyboard on the phone | on | With the touchpad on and no physical keyboard, the on-screen keyboard opens on the phone, below the touchpad |
 | Keep the monitor on | off | Ignores the screen timeout in desktop mode; the power button still works |
 | Monitor density (dpi) | not set | 100–800, or 0 for the monitor's default. Never touched until you set it; clear the field and Apply to stop changing it |
 | Monitor resolution | not set | Picked from the sizes that fit the connected monitor, or Native. Lower = bigger UI, lighter on the GPU |
@@ -144,6 +149,9 @@ update renamed something) — please include that line in bug reports.
 | Two fingers | Scroll (natural direction, like on the phone) |
 | Two-finger tap | Right click |
 | Three fingers | Phone back to normal (so does Win+P) |
+
+Typing: tap a text field on the monitor; if no physical keyboard is connected,
+the on-screen keyboard opens on the phone and the touchpad shrinks above it.
 
 Pointer speed: *Touchpad sensitivity* in the module's settings, on top of the
 system's pointer speed. The black screen shows a hint of the gestures for
@@ -168,9 +176,25 @@ To go back to mirroring just pick *Mirroring* in the dialog (or clear the
 saved choice in Settings → *External displays*, reachable via
 `am start -n com.android.settings/.SubSettings --es :settings:show_fragment com.android.settings.connecteddevice.display.ExternalDisplayPreferenceFragment`).
 
+### Quick Settings tiles
+
+Edit the tiles in the notification shade and add:
+
+- **Monitor**: switches the connected monitor between *Computer* (desktop) and
+  *Mirroring* without unplugging; going back to Computer starts the dock again.
+- **Touchpad**: turns the phone into the touchpad right away (and back), and
+  remembers the choice for the next connection.
+
+Both need the phone unlocked.
+
 ## If something goes wrong
 
-- Check the `[diag]` lines: `adb logcat -s HyperDesktop | grep diag`.
+- Open the module's settings → **Diagnostics**. The status line says whether the
+  module is running in the system, whether a reboot is needed, and which parts
+  did not attach. **Create diagnostic report** collects the phone model, Android
+  and HyperOS version, the settings and the module's recent log lines from the
+  system and SystemUI; copy it, share it, or tap *Report on GitHub* and paste it.
+- Or check the `[diag]` lines: `adb logcat -s HyperDesktop | grep diag`.
 - LSPosed disables a module automatically after repeated system crashes.
 - Otherwise, with the phone plugged into a PC while booting:
   ```
@@ -254,7 +278,10 @@ sul monitor, spegne lo schermo del telefono e aggiunge Alt+Tab, screenshot del
 monitor e altre scorciatoie da tastiera. Dalla 1.5.0 c'è un'app di
 impostazioni (in italiano) per scegliere il dock, lo spegnimento del telefono,
 la densità, risoluzione e frequenza del monitor, "tieni acceso" e le
-scorciatoie. Dalla 1.9.0 il telefono può fare da touchpad: lo schermo resta
-nero, un dito muove il puntatore, un tocco fa clic, due dita scorrono. Le finestre
+scorciatoie. Dalla 1.9 il telefono può fare da touchpad: lo schermo resta
+nero, un dito muove il puntatore, un tocco fa clic, due dita scorrono. Dalla
+1.10 senza tastiera fisica la tastiera a schermo compare sul telefono, ci sono
+i riquadri rapidi *Monitor* (Computer ↔ Mirroring) e *Touchpad*, e nelle
+impostazioni c'è un report diagnostico da allegare alle segnalazioni. Le finestre
 ridimensionabili in stile AOSP non sono disponibili su questa build: Xiaomi
 non le espone e le finestre "mobili" di HyperOS hanno dimensione fissa.

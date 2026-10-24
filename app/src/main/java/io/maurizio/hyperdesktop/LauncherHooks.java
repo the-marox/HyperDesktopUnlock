@@ -36,7 +36,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
  * (scelta Desktop) attende che il display esterno sia attivo e ci lancia sopra
  * il desktop del dock con ActivityOptions.setLaunchDisplayId.
  *
- * desktopIntent()/startOnDisplay() sono usati anche da Win+D (system_server).
+ * desktopIntent()/startOnDisplay()/launchExtras() sono usati anche da system_server
+ * (Win+D e il ritorno al desktop dal riquadro "Monitor").
  */
 public final class LauncherHooks {
 
@@ -104,10 +105,11 @@ public final class LauncherHooks {
 
         String pkg = Prefs.launcherPkg();
         Intent i = desktopIntent(ctx, pkg);
-        if (i == null) { XLog.i("[launcher] " + pkg + " non installato"); launchExtras(ctx, target); return true; }
+        Handler main = new Handler(Looper.getMainLooper());
+        if (i == null) { XLog.i("[launcher] " + pkg + " non installato"); launchExtras(ctx, target, main); return true; }
         startOnDisplay(ctx, i, target);
         XLog.i("[launcher] avvio di " + i.getComponent().flattenToShortString() + " richiesto sul display " + target);
-        launchExtras(ctx, target);
+        launchExtras(ctx, target, main);
         return true;
     }
 
@@ -115,10 +117,10 @@ public final class LauncherHooks {
      * App extra scelte nelle impostazioni, aperte sul monitor dopo il dock (una
      * volta per collegamento). Un breve ritardo le fa comparire sopra al dock.
      */
-    private static void launchExtras(final Context ctx, final int target) {
+    static void launchExtras(final Context ctx, final int target, Handler h) {
         final String list = Prefs.extraApps();
         if (list.isEmpty()) return;
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+        h.postDelayed(new Runnable() {
             @Override public void run() {
                 PackageManager pm = ctx.getPackageManager();
                 for (String raw : list.split("[,\\s]+")) {

@@ -64,4 +64,31 @@
     <string name="updates_latest">You are on the latest version (v%1$s).</string>
     <string name="updates_available">Update available: %1$s — tap to open Releases.</string>
     <string name="updates_error">Could not check for updates — tap to open Releases.</string>
+
+    <string name="phone_keyboard_title">Keyboard on the phone</string>
+    <string name="phone_keyboard_summary">With the touchpad on, tapping a text field on the monitor shows the on-screen keyboard on the phone, below the touchpad. With a physical keyboard connected Android doesn\'t show it.</string>
+    <string name="tiles_hint">Quick Settings: edit the tiles in the notification shade to add \"Monitor\" (Computer ↔ Mirroring) and \"Touchpad\".</string>
+    <string name="section_diag">Diagnostics</string>
+    <string name="diag_checking">Checking the module in the system…</string>
+    <string name="diag_ok">Module running in the system (v%1$s), all parts attached.</string>
+    <string name="diag_reboot">The system is still running v%1$s: reboot to start v%2$s.</string>
+    <string name="diag_missing">Some parts did not attach: %1$s. Create a report and open an issue on GitHub.</string>
+    <string name="diag_no_answer">The system did not answer: the module is not loaded yet. Reboot after installing or updating it (after a reboot it needs about a minute).</string>
+    <string name="diag_report_button">Create diagnostic report</string>
+    <string name="diag_note">The report contains your phone model, Android and HyperOS version, these settings and the module\'s recent log lines. Nothing is sent by itself: you choose to copy or share it.</string>
+    <string name="diag_collecting">Collecting…</string>
+    <string name="diag_report_title">Diagnostic report</string>
+    <string name="diag_copy">Copy</string>
+    <string name="diag_share">Share</string>
+    <string name="diag_issue">Report on GitHub</string>
+    <string name="diag_copied">Report copied</string>
+    <string name="diag_copied_issue">Report copied: paste it into the GitHub issue</string>
+    <string name="tile_monitor">Monitor</string>
+    <string name="tile_computer">Computer</string>
+    <string name="tile_mirroring">Mirroring</string>
+    <string name="tile_touchpad">Touchpad</string>
+    <string name="tile_on">On</string>
+    <string name="tile_off">Off</string>
+    <string name="tile_no_monitor">No monitor</string>
+    <string name="tile_not_active">Module not active</string>
 </resources>

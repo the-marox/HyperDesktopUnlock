@@ -49,6 +49,34 @@
             </intent-filter>
         </activity>
 
+        <!-- Riquadri delle impostazioni rapide: Computer <-> Mirroring e Touchpad -->
+        <service
+            android:name=".MonitorTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_monitor"
+            android:label="@string/tile_monitor"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+        <service
+            android:name=".TouchpadTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_touchpad"
+            android:label="@string/tile_touchpad"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
         <!-- Salva gli screenshot del monitor per conto di system_server.
              INTERACT_ACROSS_USERS_FULL: le app di terze parti non possono
              ottenerlo, il sistema lo supera sempre. -->

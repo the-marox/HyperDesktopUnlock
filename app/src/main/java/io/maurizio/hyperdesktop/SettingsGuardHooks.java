@@ -32,6 +32,12 @@ public final class SettingsGuardHooks {
     static final String KEY_FREEFORM = "enable_freeform_support";
     private static final String[] KEYS = { KEY_MIRROR, KEY_FORCE, KEY_FREEFORM };
 
+    /**
+     * Scritture volute dall'utente fatte da system_server per conto del riquadro
+     * "Monitor" (ModuleControl): solo il thread che le fa, solo durante la scrittura.
+     */
+    static final ThreadLocal<Boolean> USER_WRITE = new ThreadLocal<>();
+
     public static void hook(LoadPackageParam lp) {
         int secure = hookTable(lp, "android.provider.Settings$Secure");
         int global = hookTable(lp, "android.provider.Settings$Global");
@@ -51,6 +57,7 @@ public final class SettingsGuardHooks {
             try {
                 XposedBridge.hookMethod(m, new XC_MethodHook() {
                     @Override protected void beforeHookedMethod(MethodHookParam p) {
+                        if (Boolean.TRUE.equals(USER_WRITE.get())) return;
                         int ki = indexOfKey(p.args);
                         if (ki < 0) return;
                         String key = (String) p.args[ki];

@@ -53,4 +53,31 @@
     <string name="updates_latest">Hai l\'ultima versione (v%1$s).</string>
     <string name="updates_available">Aggiornamento disponibile: %1$s — tocca per aprire le Release.</string>
     <string name="updates_error">Impossibile controllare gli aggiornamenti — tocca per aprire le Release.</string>
+
+    <string name="phone_keyboard_title">Tastiera sul telefono</string>
+    <string name="phone_keyboard_summary">Con il touchpad attivo, toccando un campo di testo sul monitor la tastiera a schermo compare sul telefono, sotto il touchpad. Con una tastiera fisica collegata Android non la mostra.</string>
+    <string name="tiles_hint">Impostazioni rapide: modificando i riquadri nel pannello notifiche puoi aggiungere \"Monitor\" (Computer ↔ Mirroring) e \"Touchpad\".</string>
+    <string name="section_diag">Diagnostica</string>
+    <string name="diag_checking">Controllo del modulo nel sistema…</string>
+    <string name="diag_ok">Modulo attivo nel sistema (v%1$s), tutte le parti agganciate.</string>
+    <string name="diag_reboot">Nel sistema gira ancora la v%1$s: riavvia per usare la v%2$s.</string>
+    <string name="diag_missing">Alcune parti non si sono agganciate: %1$s. Crea un report e apri una segnalazione su GitHub.</string>
+    <string name="diag_no_answer">Il sistema non risponde: il modulo non è ancora caricato. Riavvia dopo averlo installato o aggiornato (dopo un riavvio serve circa un minuto).</string>
+    <string name="diag_report_button">Crea report diagnostico</string>
+    <string name="diag_note">Il report contiene il modello del telefono, la versione di Android e HyperOS, queste impostazioni e le ultime righe di log del modulo. Non viene inviato da solo: sei tu a copiarlo o condividerlo.</string>
+    <string name="diag_collecting">Raccolta in corso…</string>
+    <string name="diag_report_title">Report diagnostico</string>
+    <string name="diag_copy">Copia</string>
+    <string name="diag_share">Condividi</string>
+    <string name="diag_issue">Segnala su GitHub</string>
+    <string name="diag_copied">Report copiato</string>
+    <string name="diag_copied_issue">Report copiato: incollalo nella segnalazione su GitHub</string>
+    <string name="tile_monitor">Monitor</string>
+    <string name="tile_computer">Computer</string>
+    <string name="tile_mirroring">Mirroring</string>
+    <string name="tile_touchpad">Touchpad</string>
+    <string name="tile_on">Attivo</string>
+    <string name="tile_off">Spento</string>
+    <string name="tile_no_monitor">Nessun monitor</string>
+    <string name="tile_not_active">Modulo non attivo</string>
 </resources>

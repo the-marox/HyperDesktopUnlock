@@ -31,6 +31,10 @@ final class Prefs {
     /** Broadcast con cui l'app chiede a system_server di riapplicare subito le impostazioni. */
     static final String ACTION_APPLY     = "io.maurizio.hyperdesktop.APPLY_SETTINGS";
     static final String PERMISSION_APPLY = "io.maurizio.hyperdesktop.permission.APPLY_SETTINGS";
+    /** Comandi e stato (broadcast ordinato) tra l'app e i processi agganciati: vedi ModuleControl. */
+    static final String ACTION_COMMAND   = "io.maurizio.hyperdesktop.COMMAND";
+    static final String EXTRA_CMD        = "cmd";
+    static final String EXTRA_DIAG       = "diag";
 
     static final String K_LAUNCHER_PKG   = "launcher_pkg";
     static final String K_AUTO_LAUNCH    = "auto_launch";
@@ -41,6 +45,7 @@ final class Prefs {
     static final String K_SWITCHER       = "switcher_preview";
     static final String K_TOUCHPAD       = "touchpad";
     static final String K_TOUCHPAD_SENS  = "touchpad_sensitivity";   // "1".."20", assente = SENS_DEFAULT
+    static final String K_PHONE_KEYBOARD = "phone_keyboard";
     static final String K_DENSITY        = "monitor_density";
     static final String K_RESOLUTION     = "monitor_resolution";
     static final String K_REFRESH        = "monitor_refresh";
@@ -54,6 +59,7 @@ final class Prefs {
     static final boolean D_SHORTCUTS     = true;
     static final boolean D_SWITCHER      = true;
     static final boolean D_TOUCHPAD      = false;
+    static final boolean D_PHONE_KEYBOARD = true;
     static final boolean D_KEEP_AWAKE    = false;
 
     /**
@@ -135,6 +141,7 @@ final class Prefs {
     static boolean switcherPreview() { return bool(K_SWITCHER, D_SWITCHER); }
     static boolean keepAwake()     { return bool(K_KEEP_AWAKE, D_KEEP_AWAKE); }
     static boolean touchpad()      { return bool(K_TOUCHPAD, D_TOUCHPAD); }
+    static boolean phoneKeyboard() { return bool(K_PHONE_KEYBOARD, D_PHONE_KEYBOARD); }
     static final int SENS_MIN = 1, SENS_MAX = 20, SENS_DEFAULT = 6;
     static int     touchpadSensitivity() {
         int v = integer(K_TOUCHPAD_SENS, SENS_DEFAULT);

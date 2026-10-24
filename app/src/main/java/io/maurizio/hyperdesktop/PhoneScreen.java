@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.provider.Settings;
 import android.telephony.TelephonyManager;
 
 import de.robv.android.xposed.XposedHelpers;
@@ -36,7 +37,8 @@ import de.robv.android.xposed.XposedHelpers;
  *  - una volta per collegamento: se l'utente blocca e risveglia il telefono,
  *    lo schermo torna acceso e resta acceso (via d'uscita).
  * Lo spegnimento automatico si puo' disattivare (Prefs.phoneOff); Win+P
- * (toggle) funziona comunque.
+ * (toggle) funziona comunque. Mai durante il mirroring: il monitor mostrerebbe
+ * lo schermo nero del telefono.
  *
  * Tutto lo stato si cambia solo sul nostro thread (anche i tocchi del touchpad
  * arrivano qui, perche' la sua finestra e' aggiunta da questo thread).
@@ -58,6 +60,12 @@ public final class PhoneScreen {
     private static volatile boolean receiverRegistered = false;
 
     static void init(ClassLoader classLoader) { cl = classLoader; }
+
+    /** ClassLoader di system_server (per le classi interne del framework). */
+    static ClassLoader classLoader() { return cl; }
+
+    /** Per la diagnostica e i riquadri: "normal", "off" o "touchpad". */
+    static String state() { return !turnedOff ? "normal" : touchpadMode ? "touchpad" : "off"; }
 
     /**
      * Chiamato da ExternalDisplayGate quando compare un display esterno fisico.
@@ -96,9 +104,45 @@ public final class PhoneScreen {
                 if (c0 == null) return;
                 registerReceiver(c0);   // per accorgersi di standby, risveglio e chiamate
                 if (turnedOff) restore("Win+P");
-                else turnOff(c0, "Win+P");
+                else turnOff(c0, "Win+P", Prefs.touchpad());
             }
         });
+    }
+
+    /**
+     * Riquadro "Touchpad" nelle impostazioni rapide: on = il telefono diventa
+     * subito il touchpad (se il monitor e' in desktop); off = telefono normale.
+     */
+    static void touchpadNow(final boolean on) {
+        handler().post(new Runnable() {
+            @Override public void run() {
+                Context c0 = systemContext();
+                if (c0 == null) return;
+                registerReceiver(c0);
+                if (!on) { if (touchpadMode) restore("riquadro touchpad"); return; }
+                if (!ExternalDisplayGate.present || !isInteractive()) return;
+                KeyguardManager km = c0.getSystemService(KeyguardManager.class);
+                if (km != null && km.isKeyguardLocked()) { XLog.i("[screen] riquadro touchpad: telefono bloccato, ignoro"); return; }
+                if (turnedOff && touchpadMode) return;
+                if (turnedOff) restore("riquadro touchpad");   // da pannello spento a touchpad
+                collapseShade(c0);
+                turnOff(c0, "riquadro touchpad", true);
+            }
+        });
+    }
+
+    /** Il monitor e' passato a mirroring (riquadro): il telefono deve tornare visibile. */
+    static void onMirroring() {
+        handler().post(new Runnable() {
+            @Override public void run() { restore("mirroring"); }
+        });
+    }
+
+    /** Il monitor e' tornato in desktop senza essere ricollegato (riquadro). */
+    static void onDesktopResumed() {
+        handler().postDelayed(new Runnable() {
+            @Override public void run() { if (Prefs.phoneOff()) tryTurnOff("ritorno al desktop"); }
+        }, DELAY_MS);
     }
 
     /** Tre dita sul touchpad. */
@@ -117,7 +161,9 @@ public final class PhoneScreen {
                 Context c0 = systemContext();
                 if (c0 == null) return;
                 restore("impostazioni cambiate");
-                if (!turnedOff && ExternalDisplayGate.present && isInteractive()) turnOff(c0, "impostazioni cambiate");
+                if (!turnedOff && ExternalDisplayGate.present && isInteractive()) {
+                    turnOff(c0, "impostazioni cambiate", Prefs.touchpad());
+                }
             }
         });
     }
@@ -137,12 +183,13 @@ public final class PhoneScreen {
             XLog.i("[screen] telefono bloccato: spengo lo schermo dopo lo sblocco");
             return;
         }
-        turnOff(ctx, why);
+        turnOff(ctx, why, Prefs.touchpad());
     }
 
-    private static void turnOff(Context ctx, String why) {
+    private static void turnOff(Context ctx, String why, boolean useTouchpad) {
         if (turnedOff) return;
-        if (Prefs.touchpad()) {
+        if (mirroring(ctx)) { XLog.i("[screen] monitor in mirroring: il telefono resta acceso (" + why + ")"); return; }
+        if (useTouchpad) {
             if (Touchpad.show(ctx)) {
                 turnedOff = true;
                 touchpadMode = true;
@@ -270,7 +317,8 @@ public final class PhoneScreen {
     // ------------------------------------------------------------------
     private static synchronized Handler handler() {
         if (handler == null) {
-            HandlerThread t = new HandlerThread("HyperDesktop-screen");
+            // priorita' "display": su questo thread arrivano i tocchi del touchpad
+            HandlerThread t = new HandlerThread("HyperDesktop-screen", android.os.Process.THREAD_PRIORITY_DISPLAY);
             // In system_server un'eccezione non gestita su un thread ucciderebbe il
             // processo. Qui la fermiamo: chiudiamo il touchpad (il telefono torna
             // usabile) e il thread viene ricreato al bisogno.
@@ -295,6 +343,17 @@ public final class PhoneScreen {
                 XposedHelpers.findClass("android.app.ActivityThread", null), "currentActivityThread");
             return (Context) XposedHelpers.callMethod(at, "getSystemContext");
         } catch (Throwable t) { return null; }
+    }
+
+    /** Secure.mirror_built_in_display == 1: il monitor ripete lo schermo del telefono. */
+    private static boolean mirroring(Context ctx) {
+        try { return Settings.Secure.getInt(ctx.getContentResolver(), SettingsGuardHooks.KEY_MIRROR, 0) == 1; }
+        catch (Throwable t) { return false; }
+    }
+
+    private static void collapseShade(Context ctx) {
+        try { XposedHelpers.callMethod(ctx.getSystemService("statusbar"), "collapsePanels"); }
+        catch (Throwable t) { XLog.e("[screen] chiusura del pannello notifiche fallita", t); }
     }
 
     private static boolean isInteractive() {

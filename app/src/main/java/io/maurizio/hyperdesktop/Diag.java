@@ -18,6 +18,8 @@ import java.util.Map;
 final class Diag {
 
     private static final Map<String, Boolean> marks = new LinkedHashMap<>();
+    /** Ultima riga [diag] di questo processo (per il report dell'app). */
+    static volatile String last = "";
 
     static synchronized void mark(String name, boolean ok) {
         Boolean prev = marks.get(name);
@@ -38,7 +40,8 @@ final class Diag {
         String prefs = Prefs.describeIfLoaded();
         if (prefs != null) sb.append(" | ").append(prefs);
         if (!allOk) sb.append("  <-- some hooks did not attach (firmware changed?)");
-        XLog.i(sb.toString());
+        last = sb.toString();
+        XLog.i(last);
         marks.clear();
     }
 
