@@ -6,11 +6,12 @@
 package io.maurizio.hyperdesktop;
 
 import java.lang.reflect.Method;
+import java.util.WeakHashMap;
 
 import de.robv.android.xposed.XposedHelpers;
 
 /**
- * Ri-aggancio della tastiera sul monitor (1.10.12).
+ * Ri-aggancio della tastiera sul monitor (1.10.12, innesco per-app dalla 1.10.13).
  *
  * Su display esterno la connessione d'input dell'app nasce "morta": i primi tasti
  * fisici non arrivano al campo di testo finche' un giro completo di focus-finestra
@@ -20,21 +21,24 @@ import de.robv.android.xposed.XposedHelpers;
  * client dell'app): il pezzo "morto" e' la InputConnection lato app, che solo un
  * nuovo giro di focus ricrea (ViewRootImpl.onWindowFocusChanged true -> restartInput).
  *
- * Qui replichiamo quel giro una volta, da soli: togliamo il focus all'app sul display
- * esterno e, dopo una breve pausa, glielo ridiamo. In mezzo la finestra riceve
- * focus=false poi focus=true, e l'app rifa' la connessione. Tutto sotto il lock del
- * WindowManager, sul thread di AltTabHooks (mai dentro un hook), con guardie e
- * try/catch: un errore non puo' propagarsi, e c'e' una rete che non lascia mai il
- * display senza finestra a fuoco. Disattivabile dall'app (impostazione "reconnect").
+ * Qui replichiamo quel giro: quando un'app prende il fuoco sul monitor (hook su
+ * DisplayContent.setFocusedApp in ExternalDisplayGate) le togliamo e, dopo una breve
+ * pausa, le ridiamo il focus. Ogni app viene ri-agganciata una sola volta per
+ * sessione di collegamento (vedi DONE), per non sfarfallare a ogni cambio app.
  *
- * Metodi usati (firme reali lette dal probe 1.10.11 su questo framework):
+ * Tutto sotto il lock del WindowManager, sul thread di AltTabHooks (mai dentro un
+ * hook), con guardie e try/catch: un errore non puo' propagarsi, e c'e' una rete che
+ * non lascia mai il display senza finestra a fuoco. Disattivabile dall'app.
+ *
+ * Firme reali lette dal probe 1.10.11 su questo framework (Android 17 / SDK 37):
  *   RootWindowContainer#getDisplayContent(int)
  *   DisplayContent#setFocusedApp(ActivityRecord)
  *   WindowManagerService#updateFocusedWindowLocked(int, boolean)   // modo 0 = UPDATE_FOCUS_NORMAL
  */
 public final class InputReconnect {
 
-    private static final long STEP_GAP_MS = 250;   // pausa tra "togli focus" e "ridai focus"
+    private static final long STEP_GAP_MS       = 250;   // pausa tra "togli focus" e "ridai focus"
+    private static final long APP_FOCUS_DELAY_MS = 400;  // l'app si assesta prima del giro
     private static final int  UPDATE_FOCUS_NORMAL = 0;
 
     private static volatile boolean busy;
@@ -44,24 +48,39 @@ public final class InputReconnect {
     private static volatile Method mGetDc, mSetFocusedApp, mUpdateFocus;
     private static volatile Object savedApp;
 
-    /**
-     * Rifa' il giro di focus sull'app a fuoco del display esterno. Chiamabile da
-     * qualsiasi thread: il lavoro vero gira sul thread di AltTabHooks.
-     */
-    static void nudge(final String why) {
+    /** App gia' ri-agganciate in questa sessione di collegamento (una volta ciascuna). */
+    private static final WeakHashMap<Object, Boolean> DONE = new WeakHashMap<>();
+
+    /** Un'app ha preso il fuoco sul monitor (dall'hook su setFocusedApp). */
+    static void onAppFocused(int displayId, Object app) {
         try {
+            if (busy || app == null) return;
             if (!Prefs.imeReconnect()) return;
-            if (!ExternalDisplayGate.present) return;
+            if (!ExternalDisplayGate.present || displayId != ExternalDisplayGate.externalId) return;
+            synchronized (DONE) { if (DONE.containsKey(app)) return; DONE.put(app, Boolean.TRUE); }
+            nudge("app a fuoco", APP_FOCUS_DELAY_MS);
+        } catch (Throwable t) { XLog.e("[reconnect] onAppFocused fallito", t); }
+    }
+
+    /** Monitor scollegato: le app andranno ri-agganciate al prossimo collegamento. */
+    static void onExternalRemoved() {
+        synchronized (DONE) { DONE.clear(); }
+        busy = false;
+    }
+
+    /** Rifa' il giro di focus (togli+ridai) sull'app a fuoco del monitor, dopo startDelay ms. */
+    static void nudge(final String why, long startDelay) {
+        try {
+            if (!Prefs.imeReconnect() || !ExternalDisplayGate.present) return;
             final int displayId = ExternalDisplayGate.externalId;
-            if (displayId <= 0) return;
-            if (busy) return;
+            if (displayId <= 0 || busy) return;
             busy = true;
-            AltTabHooks.handler().post(new Runnable() {
+            AltTabHooks.handler().postDelayed(new Runnable() {
                 @Override public void run() { phaseOut(displayId); }
-            });
+            }, startDelay);
             AltTabHooks.handler().postDelayed(new Runnable() {
                 @Override public void run() { phaseIn(displayId, why); }
-            }, STEP_GAP_MS);
+            }, startDelay + STEP_GAP_MS);
         } catch (Throwable t) { busy = false; XLog.e("[reconnect] avvio fallito", t); }
     }
 
@@ -97,6 +116,7 @@ public final class InputReconnect {
                 savedApp = app;
                 mSetFocusedApp.invoke(dc, new Object[]{ null });
                 mUpdateFocus.invoke(wms, new Object[]{ UPDATE_FOCUS_NORMAL, true });
+                XLog.i("[reconnect] focus tolto (display " + displayId + "), finestra a fuoco ora = " + focusName(dc));
             }
         } catch (Throwable t) { XLog.e("[reconnect] fase 'togli focus' fallita", t); savedApp = null; busy = false; }
     }
@@ -116,10 +136,10 @@ public final class InputReconnect {
                     mSetFocusedApp.invoke(dc, new Object[]{ savedApp });
                     mUpdateFocus.invoke(wms, new Object[]{ UPDATE_FOCUS_NORMAL, true });
                 }
+                XLog.i("[reconnect] focus ridato (display " + displayId + ", " + why + "), finestra a fuoco = " + focusName(dc));
             }
-            XLog.i("[reconnect] giro di focus eseguito sul display " + displayId + " (" + why + ")");
         } catch (Throwable t) {
-            XLog.e("[reconnect] fase 'ridai focus' fallita, provo a ripristinare", t);
+            XLog.e("[reconnect] fase 'ridai focus' fallita, ripristino", t);
             try { synchronized (lock) {
                 Object dc = mGetDc.invoke(root, displayId);
                 if (dc != null && savedApp != null) {
@@ -128,6 +148,11 @@ public final class InputReconnect {
                 }
             }} catch (Throwable ignored) {}
         } finally { savedApp = null; busy = false; }
+    }
+
+    private static String focusName(Object dc) {
+        try { Object w = XposedHelpers.getObjectField(dc, "mCurrentFocus"); return w == null ? "null" : String.valueOf(w); }
+        catch (Throwable t) { return "?"; }
     }
 
     private InputReconnect() {}
