@@ -138,6 +138,8 @@ public class SettingsActivity extends Activity {
             applyField(R.string.refresh_title, R.string.refresh_summary, R.string.refresh_invalid,
                        Prefs.K_REFRESH, InputType.TYPE_CLASS_NUMBER, NORM_REFRESH);
         }
+        toggle(R.string.fit_status_bar_title, R.string.fit_status_bar_summary,
+               Prefs.K_FIT_STATUS_BAR, Prefs.D_FIT_STATUS_BAR, true);
 
         section(R.string.section_keyboard);
         toggle(R.string.shortcuts_title, 0, Prefs.K_SHORTCUTS, Prefs.D_SHORTCUTS, false);

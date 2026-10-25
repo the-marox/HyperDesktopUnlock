@@ -138,6 +138,7 @@ update renamed something) — please include that line in bug reports.
 | Monitor density (dpi) | not set | 100–800, or 0 for the monitor's default. Never touched until you set it; clear the field and Apply to stop changing it |
 | Monitor resolution | not set | Picked from the sizes that fit the connected monitor, or Native. Lower = bigger UI, lighter on the GPU |
 | Monitor refresh rate (Hz) | not set | Picked from the rates the monitor reports, or Native |
+| Keep apps below the monitor's status bar (experimental) | off | For apps that draw under the monitor's status bar (e.g. a browser's tab strip). App windows on the monitor start below the bar; full-screen video is unaffected. Applies to apps opened afterwards |
 | Desktop keyboard shortcuts | on | Alt+Tab and all the shortcuts below |
 | Alt+Tab preview bar | on | Hold Alt for a Windows-style bar of the open apps; off = switch instantly on each Tab |
 
@@ -209,6 +210,11 @@ Both need the phone unlocked.
   and the letters get stuck in it. Apps with a plain text field (WhatsApp, for
   example) may work either way, which makes it look app-specific. Since 1.11.0
   the module's settings warn you when it's on and can turn it off for you.
+- **An app on the monitor is covered by the status bar** (its top row, such as a
+  browser's tabs, sits under the clock and icons): since Android 15 apps draw
+  edge to edge and must leave room for the bar themselves, and some don't on an
+  external display. Turn on *Keep apps below the monitor's status bar* and reopen
+  the app.
 - LSPosed disables a module automatically after repeated system crashes.
 - Otherwise, with the phone plugged into a PC while booting:
   ```
@@ -307,3 +313,6 @@ blocchi e sblocchi il telefono (Canc e Backspace funzionano, le lettere no),
 disattiva *Mostra tastiera virtuale* nelle impostazioni della tastiera fisica,
 oppure `settings put secure show_ime_with_hard_keyboard 0`. Dalla 1.11 le
 impostazioni del modulo te lo segnalano e possono disattivarlo con un tocco.
+Se un'app sul monitor finisce sotto la barra di stato (per esempio le schede di un
+browser), dalla 1.12 c'è l'opzione sperimentale *App sotto la barra di stato del
+monitor*.

@@ -61,6 +61,8 @@
     <string name="ime_warning_button">Turn it off</string>
     <string name="ime_warning_done">\"Show on-screen keyboard\" turned off</string>
     <string name="ime_warning_failed">Couldn\'t change it: turn off \"Show on-screen keyboard\" in the physical keyboard settings</string>
+    <string name="fit_status_bar_title">Keep apps below the monitor\'s status bar (experimental)</string>
+    <string name="fit_status_bar_summary">Some apps (a browser\'s tab strip, for example) draw under the status bar on the monitor, and the bar covers their top. On = app windows on the monitor start below the bar; full-screen videos stay full screen. Applies to apps opened after you turn it on.</string>
     <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — switch apps on the monitor\nPrint Screen · Win+Shift+S — screenshot of the monitor\nWin+Shift+Arrow — move an app between monitor and phone\nAlt+F4 — close the app on the monitor\nWin+D — show the dock\'s desktop\nWin+Backspace — Back\nWin+1…9 — focus the Nth app\nWin+P — phone screen on/off</string>
 
     <string name="section_updates">Updates</string>

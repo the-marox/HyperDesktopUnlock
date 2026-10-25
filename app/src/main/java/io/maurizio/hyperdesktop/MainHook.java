@@ -27,6 +27,7 @@ public class MainHook implements IXposedHookLoadPackage {
         switch (lp.packageName) {
             case "android":
                 safe("gate",          () -> ExternalDisplayGate.hook(lp));
+                safe("monitor-insets", () -> MonitorInsets.hook(lp));
                 safe("desktop-flags", () -> DesktopModeHooks.hook(lp, "system_server"));
                 safe("mirror-guard",  () -> SettingsGuardHooks.hook(lp));
                 safe("mirror-policy", () -> MirrorPolicyHooks.hook(lp));

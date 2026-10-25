@@ -50,6 +50,8 @@
     <string name="ime_warning_button">Disattivalo</string>
     <string name="ime_warning_done">\"Mostra tastiera virtuale\" disattivato</string>
     <string name="ime_warning_failed">Non è stato possibile cambiarlo: disattiva \"Mostra tastiera virtuale\" nelle impostazioni della tastiera fisica</string>
+    <string name="fit_status_bar_title">App sotto la barra di stato del monitor (sperimentale)</string>
+    <string name="fit_status_bar_summary">Alcune app (per esempio la barra delle schede di un browser) disegnano sotto la barra di stato del monitor, che ne copre la parte alta. Attivo = le finestre delle app sul monitor iniziano sotto la barra; i video a schermo intero restano a schermo intero. Vale per le app aperte dopo averlo attivato.</string>
     <string name="shortcuts_list">Alt+Tab · Alt+Maiusc+Tab — cambia app sul monitor\nStamp · Win+Maiusc+S — screenshot del monitor\nWin+Maiusc+freccia — sposta un\'app tra monitor e telefono\nAlt+F4 — chiudi l\'app sul monitor\nWin+D — mostra il desktop del dock\nWin+Backspace — Indietro\nWin+1…9 — metti a fuoco l\'ennesima app\nWin+P — schermo del telefono acceso/spento</string>
 
     <string name="section_updates">Aggiornamenti</string>

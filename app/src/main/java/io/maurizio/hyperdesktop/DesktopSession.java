@@ -46,6 +46,7 @@ final class DesktopSession {
         AltTabHooks.handler().post(new Runnable() {
             @Override public void run() {
                 registerApplyReceiver();
+                MonitorInsets.refresh();
                 setKeepAwake(Prefs.keepAwake());
             }
         });
@@ -73,6 +74,7 @@ final class DesktopSession {
             BroadcastReceiver r = new BroadcastReceiver() {
                 @Override public void onReceive(Context c, Intent i) {
                     Prefs.refresh();
+                    MonitorInsets.refresh();
                     if (!ExternalDisplayGate.present) {   // valgono al prossimo collegamento
                         setKeepAwake(false);              // e un wakelock rimasto non deve restare
                         return;

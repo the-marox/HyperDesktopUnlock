@@ -51,6 +51,7 @@ final class Prefs {
     static final String K_REFRESH        = "monitor_refresh";
     static final String K_MODES_CACHE    = "modes_cache";   // solo l'app: modalita' viste sull'ultimo monitor
     static final String K_KEEP_AWAKE     = "keep_awake";
+    static final String K_FIT_STATUS_BAR = "monitor_fit_status_bar";
 
     static final String  D_LAUNCHER_PKG  = "cu.axel.smartdock";
     static final boolean D_AUTO_LAUNCH   = true;
@@ -61,6 +62,7 @@ final class Prefs {
     static final boolean D_TOUCHPAD      = false;
     static final boolean D_PHONE_KEYBOARD = true;
     static final boolean D_KEEP_AWAKE    = false;
+    static final boolean D_FIT_STATUS_BAR = false;   // sperimentale: spento finche' non e' provato
 
     /**
      * Densita': chiave assente = non toccare; 0 = predefinita del monitor;
@@ -140,6 +142,7 @@ final class Prefs {
     static boolean shortcuts()     { return bool(K_SHORTCUTS, D_SHORTCUTS); }
     static boolean switcherPreview() { return bool(K_SWITCHER, D_SWITCHER); }
     static boolean keepAwake()     { return bool(K_KEEP_AWAKE, D_KEEP_AWAKE); }
+    static boolean fitStatusBar()  { return bool(K_FIT_STATUS_BAR, D_FIT_STATUS_BAR); }
     static boolean touchpad()      { return bool(K_TOUCHPAD, D_TOUCHPAD); }
     static boolean phoneKeyboard() { return bool(K_PHONE_KEYBOARD, D_PHONE_KEYBOARD); }
     static final int SENS_MIN = 1, SENS_MAX = 20, SENS_DEFAULT = 6;
