@@ -59,6 +59,7 @@ final class MonitorLayout {
                                     + " frame=" + (f == null ? "?" : f.toShortString())
                                     + " mode=" + mode(ws)
                                     + " fit=0x" + Integer.toHexString(a.getFitInsetsTypes())
+                                    + " sides=0x" + Integer.toHexString(a.getFitInsetsSides())
                                     + " fl=0x" + Integer.toHexString(a.flags)
                                     + " cutout=" + a.layoutInDisplayCutoutMode);
                         } catch (Throwable t) { lines.add("win (non leggibile: " + t.getClass().getSimpleName() + ")"); }

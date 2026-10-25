@@ -98,13 +98,21 @@ final class MonitorInsets {
         return (Integer) XposedHelpers.callMethod(win, "getDisplayId") == ext;
     }
 
-    /** Dopo i controlli del sistema: la finestra rispetta la barra di stato. */
+    /**
+     * Dopo i controlli del sistema: la finestra rispetta la barra di stato. Serve sia il
+     * TIPO (statusBars) sia il LATO (TOP): le app edge-to-edge azzerano anche i lati
+     * (fitSides vuoto) e Android toglie lo spazio solo dai lati elencati (1.12.1; nella
+     * 1.12.0 mancava il lato e la finestra restava a y=0).
+     */
     private static void add(WindowManager.LayoutParams a) {
         int sb = WindowInsets.Type.statusBars();
+        int top = WindowInsets.Side.TOP;
         int fit = a.getFitInsetsTypes();
-        if ((fit & sb) != 0) return;
-        a.setFitInsetsTypes(fit | sb);
-        if (logged < 8) {
+        int sides = a.getFitInsetsSides();
+        boolean changed = false;
+        if ((fit & sb) == 0)    { a.setFitInsetsTypes(fit | sb);    changed = true; }
+        if ((sides & top) == 0) { a.setFitInsetsSides(sides | top); changed = true; }
+        if (changed && logged < 8) {
             logged++;
             XLog.i("[insets] " + a.packageName + ": finestra sotto la barra di stato del monitor");
         }
