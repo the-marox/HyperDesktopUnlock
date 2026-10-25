@@ -66,7 +66,6 @@ public final class ExternalDisplayGate {
                             PhoneScreen.onExternalRemoved();
                             DockAccessibility.onExternalRemoved();
                             DesktopSession.onExternalRemoved();
-                            InputReconnect.onExternalRemoved();
                         }
                     }
                 });
@@ -76,7 +75,6 @@ public final class ExternalDisplayGate {
         XLog.i("[gate] hook installati (" + ctors + " costruttori + " + n + " metodi di rimozione)");
         Diag.mark("gate", ctors > 0 && n > 0);
         hookImePolicy(dc);
-        hookFocusedApp(dc);
     }
 
     /**
@@ -149,34 +147,6 @@ public final class ExternalDisplayGate {
             }
         }
         return n;
-    }
-
-    /**
-     * Ri-aggancio della tastiera: su display esterno la connessione d'input dell'app
-     * nasce "morta" finche' un giro di focus non la rigenera. Qui notiamo quando
-     * un'app prende il fuoco sul monitor, cosi' InputReconnect puo' rifare quel giro.
-     * Gira sotto il lock del WindowManager: legge solo campi volatili e accoda il
-     * lavoro vero su un altro thread.
-     */
-    private static void hookFocusedApp(Class<?> dc) {
-        int n = 0;
-        for (Method m : dc.getDeclaredMethods()) {
-            if (!m.getName().equals("setFocusedApp") || m.getParameterTypes().length != 1) continue;
-            try {
-                XposedBridge.hookMethod(m, new XC_MethodHook() {
-                    @Override protected void afterHookedMethod(MethodHookParam p) {
-                        try {
-                            if (p.args.length == 0 || p.args[0] == null) return;
-                            int id = displayIdOf(p.thisObject);
-                            if (id > 0 && id == externalId) InputReconnect.onAppFocused(id, p.args[0]);
-                        } catch (Throwable ignored) {}
-                    }
-                });
-                n++;
-            } catch (Throwable t) { XLog.e("[gate] hook setFocusedApp fallito", t); }
-        }
-        XLog.i("[gate] reconnect tastiera: " + n + " hook su setFocusedApp");
-        Diag.mark("reconnect", n > 0);
     }
 
     private static boolean isExternal(Object displayContent) {

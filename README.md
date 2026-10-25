@@ -195,6 +195,13 @@ Both need the phone unlocked.
   and HyperOS version, the settings and the module's recent log lines from the
   system and SystemUI; copy it, share it, or tap *Report on GitHub* and paste it.
 - Or check the `[diag]` lines: `adb logcat -s HyperDesktop | grep diag`.
+- **Physical-keyboard text doesn't show up in apps on the monitor until you lock
+  and unlock the phone** (Delete and Backspace work, letters don't): turn off
+  *Show on-screen keyboard* in the physical keyboard settings, or run
+  `adb shell settings put secure show_ime_with_hard_keyboard 0`. With it on, the
+  keyboard app keeps an on-screen keyboard session open for the app on the monitor
+  and the letters get stuck in it. Apps with a plain text field (WhatsApp, for
+  example) may work either way, which makes it look app-specific.
 - LSPosed disables a module automatically after repeated system crashes.
 - Otherwise, with the phone plugged into a PC while booting:
   ```
@@ -285,3 +292,8 @@ i riquadri rapidi *Monitor* (Computer ↔ Mirroring) e *Touchpad*, e nelle
 impostazioni c'è un report diagnostico da allegare alle segnalazioni. Le finestre
 ridimensionabili in stile AOSP non sono disponibili su questa build: Xiaomi
 non le espone e le finestre "mobili" di HyperOS hanno dimensione fissa.
+
+Se il testo dalla tastiera fisica non compare nelle app sul monitor finché non
+blocchi e sblocchi il telefono (Canc e Backspace funzionano, le lettere no),
+disattiva *Mostra tastiera virtuale* nelle impostazioni della tastiera fisica,
+oppure `settings put secure show_ime_with_hard_keyboard 0`.

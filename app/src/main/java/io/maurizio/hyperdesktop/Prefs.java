@@ -46,7 +46,6 @@ final class Prefs {
     static final String K_TOUCHPAD       = "touchpad";
     static final String K_TOUCHPAD_SENS  = "touchpad_sensitivity";   // "1".."20", assente = SENS_DEFAULT
     static final String K_PHONE_KEYBOARD = "phone_keyboard";
-    static final String K_IME_RECONNECT  = "ime_reconnect";
     static final String K_DENSITY        = "monitor_density";
     static final String K_RESOLUTION     = "monitor_resolution";
     static final String K_REFRESH        = "monitor_refresh";
@@ -61,7 +60,6 @@ final class Prefs {
     static final boolean D_SWITCHER      = true;
     static final boolean D_TOUCHPAD      = false;
     static final boolean D_PHONE_KEYBOARD = true;
-    static final boolean D_IME_RECONNECT  = true;
     static final boolean D_KEEP_AWAKE    = false;
 
     /**
@@ -144,7 +142,6 @@ final class Prefs {
     static boolean keepAwake()     { return bool(K_KEEP_AWAKE, D_KEEP_AWAKE); }
     static boolean touchpad()      { return bool(K_TOUCHPAD, D_TOUCHPAD); }
     static boolean phoneKeyboard() { return bool(K_PHONE_KEYBOARD, D_PHONE_KEYBOARD); }
-    static boolean imeReconnect()  { return bool(K_IME_RECONNECT, D_IME_RECONNECT); }
     static final int SENS_MIN = 1, SENS_MAX = 20, SENS_DEFAULT = 6;
     static int     touchpadSensitivity() {
         int v = integer(K_TOUCHPAD_SENS, SENS_DEFAULT);
