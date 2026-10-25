@@ -46,6 +46,10 @@
     <string name="shortcuts_title">Scorciatoie da tastiera del desktop</string>
     <string name="switcher_title">Barra anteprima Alt+Tab</string>
     <string name="switcher_summary">Tieni premuto Alt per vedere le app aperte sul monitor e rilascia Alt per passare a quella scelta. Spenta = cambio immediato a ogni Tab.</string>
+    <string name="ime_warning">Attenzione: è attivo \"Mostra tastiera virtuale\" con la tastiera fisica. In alcune app sul monitor le lettere che scrivi compaiono solo dopo aver bloccato e sbloccato il telefono (Canc e Backspace funzionano comunque).</string>
+    <string name="ime_warning_button">Disattivalo</string>
+    <string name="ime_warning_done">\"Mostra tastiera virtuale\" disattivato</string>
+    <string name="ime_warning_failed">Non è stato possibile cambiarlo: disattiva \"Mostra tastiera virtuale\" nelle impostazioni della tastiera fisica</string>
     <string name="shortcuts_list">Alt+Tab · Alt+Maiusc+Tab — cambia app sul monitor\nStamp · Win+Maiusc+S — screenshot del monitor\nWin+Maiusc+freccia — sposta un\'app tra monitor e telefono\nAlt+F4 — chiudi l\'app sul monitor\nWin+D — mostra il desktop del dock\nWin+Backspace — Indietro\nWin+1…9 — metti a fuoco l\'ennesima app\nWin+P — schermo del telefono acceso/spento</string>
 
     <string name="section_updates">Aggiornamenti</string>

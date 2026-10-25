@@ -48,6 +48,7 @@ import de.robv.android.xposed.XposedHelpers;
  *   tocco                      -> clic
  *   tocco, poi tocca e muovi   -> trascina
  *   due dita                   -> scorrimento (naturale, come sul telefono)
+ *   due dita che si allargano  -> zoom (Ctrl+rotella, nelle app che lo supportano)
  *   tocco con due dita         -> clic destro
  *   tre dita                   -> telefono di nuovo normale
  *
@@ -71,6 +72,8 @@ final class Touchpad {
     private static final long  TWO_TAP_MS    = 350;
     private static final long  DOUBLE_TAP_MS = 300;   // tocco + nuovo tocco entro questo tempo = trascina
     private static final float SCROLL_STEP   = 40f;   // px di dita per uno scatto di rotella
+    private static final float PINCH_SLOP    = 40f;   // px: la distanza tra le dita cambia di piu' = pizzico
+    private static final float PINCH_STEP    = 60f;   // px di variazione della distanza per uno scatto di zoom
     private static final long  HINT_MS       = 15000;
     private static final int   LOG_GESTURES  = 6;     // diagnostica: riepilogo dei primi gesti di ogni sessione
     private static final long  CHECK_MS      = 1200;
@@ -178,8 +181,17 @@ final class Touchpad {
             ui = new Handler(Looper.myLooper());
             int s = ++session;
             imeHandler().postDelayed(new ImePoll(s), IME_POLL_MS);
+            final VirtualMouse mine = m;
             v.postDelayed(new Runnable() {
-                @Override public void run() { if (mouse != null) mouse.check(sys); }
+                private int tries;
+                @Override public void run() {
+                    if (mouse != mine) return;                       // touchpad chiuso o riaperto
+                    if (tries == 0) mine.check(sys); else mine.checkKeys(sys);
+                    if (!mine.keysPending()) return;
+                    Handler h = ui;
+                    if (++tries <= 3 && h != null) h.postDelayed(this, CHECK_MS);
+                    else XLog.i("[touchpad] tasto Ctrl virtuale mai visto dal sistema: il pizzico non fa lo zoom");
+                }
             }, CHECK_MS);
             raw = RawTouch.start(sys, phone, RAW_LISTENER);
             if (raw == null) XLog.i("[touchpad] uso i tocchi della finestra (ripiego)");
@@ -469,12 +481,14 @@ final class Touchpad {
             return "Touchpad\n\n"
                  + "Muovi: un dito  ·  Clic: tocco\n"
                  + "Scorri: due dita  ·  Clic destro: tocco con due dita\n"
+                 + "Zoom: allarga o stringi due dita\n"
                  + "Trascina: tocca, poi tocca e muovi\n\n"
                  + "Telefono normale: tre dita o Win+P";
         }
         return "Touchpad\n\n"
              + "Move: one finger  ·  Click: tap\n"
              + "Scroll: two fingers  ·  Right click: two-finger tap\n"
+             + "Zoom: spread or pinch two fingers\n"
              + "Drag: tap, then touch and move\n\n"
              + "Phone back: three fingers or Win+P";
     }
@@ -495,6 +509,10 @@ final class Touchpad {
     private static long    downTime, twoDownTime, lastTapTime;
     private static boolean moved, twoMoved, dragArmed, dragging;
     private static int     prevN;
+    // due dita: scorrimento o pizzico, deciso una volta per gesto
+    private static boolean twoDecided, pinching, wasPinch;
+    private static float   twoStartDist, lastDist, accZ;
+    private static int     zoomSteps;   // scatti di zoom gia' mandati in questo pizzico
 
     // diagnostica del gesto in corso
     private static int     gestures, gFrames, gSent, gPalm0;
@@ -546,7 +564,8 @@ final class Touchpad {
 
     private static void resetGesture() {
         mode = IDLE; dragging = false; dragArmed = false; lastTapTime = 0; prevN = 0;
-        accX = accY = accV = accH = 0;
+        accX = accY = accV = accH = accZ = 0;
+        twoDecided = false; pinching = false; wasPinch = false;   // Ctrl lo rilascia VirtualMouse.close()
         gestures = 0;
     }
 
@@ -587,7 +606,7 @@ final class Touchpad {
             mode = POINT;
             primaryId = ids[0];
             downX = lastX = xs[0]; downY = lastY = ys[0];
-            downTime = t; moved = false; dragging = false;
+            downTime = t; moved = false; dragging = false; wasPinch = false;
             accX = accY = 0;
             gFrames = 0; gSent = 0; gDist = 0;
             RawTouch r = raw;
@@ -598,17 +617,22 @@ final class Touchpad {
 
         if (n >= 3 && mode != DONE) {                // tre dita: ridai il telefono
             mode = DONE;
+            endPinch(m);
             if (dragging) { m.release(VirtualMouse.LEFT); dragging = false; }
             PhoneScreen.restoreFromTouchpad();
-        } else if (n == 2 && mode == POINT && !dragging) {   // due dita: scorrimento
+        } else if (n == 2 && mode == POINT && !dragging) {   // due dita: scorrimento o pizzico
             mode = SCROLL;
             twoA = ids[0]; twoB = ids[1];
             twoDownTime = t; twoMoved = false;
             twoStartX = lastX = (xs[0] + xs[1]) / 2f;
             twoStartY = lastY = (ys[0] + ys[1]) / 2f;
-            accV = accH = 0;
+            twoStartDist = lastDist = dist(xs[0], ys[0], xs[1], ys[1]);
+            endPinch(m);
+            twoDecided = false;
+            accV = accH = accZ = 0;
         } else if (n > 0 && n < prevN) {              // un dito sollevato, altri ancora giu'
             if (mode == SCROLL) {
+                endPinch(m);
                 if (!twoMoved && t - twoDownTime <= TWO_TAP_MS) m.click(VirtualMouse.RIGHT);
                 mode = DONE;                          // il resto del gesto non muove il puntatore
             } else if (mode == POINT && indexOf(ids, n, primaryId) < 0) {
@@ -629,24 +653,14 @@ final class Touchpad {
                 }
             } else if (mode == SCROLL) {
                 int a = indexOf(ids, n, twoA), b = indexOf(ids, n, twoB);
-                if (a >= 0 && b >= 0) {
-                    float cx = (xs[a] + xs[b]) / 2f, cy = (ys[a] + ys[b]) / 2f;
-                    float dx = cx - lastX, dy = cy - lastY;
-                    lastX = cx; lastY = cy;
-                    if (!twoMoved && Math.hypot(cx - twoStartX, cy - twoStartY) > TAP_SLOP) twoMoved = true;
-                    accV += dy; accH += dx;
-                    int v = (int) (accV / SCROLL_STEP), h = (int) (accH / SCROLL_STEP);
-                    if (v != 0 || h != 0) {
-                        accV -= v * SCROLL_STEP; accH -= h * SCROLL_STEP;
-                        // naturale: dita giu' = contenuto giu' = rotella su; dita a destra = contenuto a destra
-                        m.scroll(v, -h);
-                    }
-                }
+                if (a >= 0 && b >= 0) twoFingers(m, xs[a], ys[a], xs[b], ys[b]);
             }
         }
 
         if (n == 0 && prevN > 0) {                    // tutte le dita sollevate: fine del gesto
-            logGesture(dragging ? "trascinamento" : mode == POINT ? (moved ? "movimento" : "tocco")
+            endPinch(m);
+            logGesture(wasPinch ? "zoom (pizzico)" : dragging ? "trascinamento"
+                    : mode == POINT ? (moved ? "movimento" : "tocco")
                     : mode == DONE ? "due/tre dita" : "altro", t);
             if (dragging) {
                 m.release(VirtualMouse.LEFT);
@@ -663,10 +677,81 @@ final class Touchpad {
         prevN = n;
     }
 
+    /**
+     * Due dita appoggiate. Si decide una volta per gesto: scorrimento se le dita si
+     * muovono insieme, pizzico se cambia la distanza tra loro. Il pizzico tiene
+     * premuto Ctrl e manda scatti di rotella: Ctrl+rotella e' lo zoom nelle app che
+     * lo supportano (browser, documenti). Prima della decisione non si scorre: lo
+     * spostamento si accumula e parte appena e' chiaro che e' uno scorrimento.
+     */
+    private static void twoFingers(VirtualMouse m, float ax, float ay, float bx, float by) {
+        float cx = (ax + bx) / 2f, cy = (ay + by) / 2f;
+        float dx = cx - lastX, dy = cy - lastY;
+        lastX = cx; lastY = cy;
+        float d  = dist(ax, ay, bx, by);
+        float cm = (float) Math.hypot(cx - twoStartX, cy - twoStartY);   // spostamento del centro
+        float dd = Math.abs(d - twoStartDist);                           // variazione della distanza
+        // non e' piu' un tocco (clic destro); per la distanza serve la soglia del pizzico:
+        // in un tocco con due dita le due dita oscillano e la distanza varia il doppio
+        if (!twoMoved && (cm > TAP_SLOP || dd > PINCH_SLOP)) twoMoved = true;
+
+        if (!twoDecided) {
+            boolean canPinch = m.hasCtrl();
+            if (canPinch && dd > PINCH_SLOP && dd > cm) {
+                twoDecided = true;
+                pinching = m.ctrl(true);
+                if (pinching) { wasPinch = true; lastDist = d; accZ = 0; zoomSteps = 0; }
+            } else if (cm > TAP_SLOP && (cm >= dd || !canPinch)) {
+                twoDecided = true;
+            }
+        }
+
+        // Falso pizzico: scorrendo con le dita affiancate, un dito che parte prima
+        // dell'altro fa cambiare la distanza. Se poi il centro si sposta piu' della
+        // distanza e nessuno zoom e' ancora partito, era uno scorrimento.
+        if (pinching && zoomSteps == 0 && cm > dd + TAP_SLOP) {
+            endPinch(m);
+            wasPinch = false;
+            accV = accH = 0;
+        }
+
+        if (pinching) {
+            accZ += d - lastDist;
+            lastDist = d;
+            int z = (int) (accZ / PINCH_STEP);
+            if (z != 0) {
+                accZ -= z * PINCH_STEP;
+                zoomSteps += Math.abs(z);
+                m.scroll(z, 0);   // dita che si allargano = Ctrl+rotella su = zoom avanti
+            }
+            return;
+        }
+        accV += dy; accH += dx;
+        if (!twoDecided) return;
+        int v = (int) (accV / SCROLL_STEP), h = (int) (accH / SCROLL_STEP);
+        if (v != 0 || h != 0) {
+            accV -= v * SCROLL_STEP; accH -= h * SCROLL_STEP;
+            // naturale: dita giu' = contenuto giu' = rotella su; dita a destra = contenuto a destra
+            m.scroll(v, -h);
+        }
+    }
+
+    /** Fine del pizzico: rilascia Ctrl. */
+    private static void endPinch(VirtualMouse m) {
+        if (!pinching) return;
+        pinching = false;
+        if (m != null) m.ctrl(false);
+    }
+
+    private static float dist(float x1, float y1, float x2, float y2) {
+        return (float) Math.hypot(x2 - x1, y2 - y1);
+    }
+
     /** Flusso dei tocchi perso o annullato: chiude il gesto senza clic. */
     private static void resetStream(long t, String why) {
         if (prevN > 0) logGesture(why, t);
         VirtualMouse m = mouse;
+        endPinch(m);
         if (dragging && m != null) m.release(VirtualMouse.LEFT);
         dragging = false;
         mode = IDLE;

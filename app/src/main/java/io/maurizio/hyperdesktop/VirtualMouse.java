@@ -47,6 +47,9 @@ final class VirtualMouse {
 
     static final String NAME = "HyperDesktop Touchpad";
     static final String PHYS = "hyperdesktop/touchpad0";
+    /** Tastiera virtuale con il solo Ctrl sinistro: pizzico sul touchpad = Ctrl+rotella (zoom). */
+    static final String KEYS_NAME = "HyperDesktop Keys";
+    static final String KEYS_PHYS = "hyperdesktop/keys0";
 
     static final int LEFT = 1, RIGHT = 2;
 
@@ -56,6 +59,7 @@ final class VirtualMouse {
     private static final short BUS_VIRTUAL  = 0x06;
     private static final int   VENDOR  = 0x1209;   // pid.codes (progetti open source)
     private static final int   PRODUCT = 0x7A11;
+    private static final int   KEYS_PRODUCT = 0x7A12;
 
     private static final byte[] REPORT_DESC = {
         0x05, 0x01,              // Usage Page (Generic Desktop)
@@ -94,13 +98,41 @@ final class VirtualMouse {
         (byte) 0xC0,             // End Collection
     };
 
+    /**
+     * Tastiera HID con un solo tasto, Ctrl sinistro (report di 1 byte: bit 0).
+     * In Android lo stato dei modificatori e' globale (InputReader): mentre Ctrl e'
+     * premuto qui, le rotelle del mouse virtuale arrivano alle app come Ctrl+rotella.
+     * Senza lettere il sistema non la tratta come una tastiera fisica vera e propria.
+     */
+    private static final byte[] KEYS_DESC = {
+        0x05, 0x01,              // Usage Page (Generic Desktop)
+        0x09, 0x06,              // Usage (Keyboard)
+        (byte) 0xA1, 0x01,       // Collection (Application)
+        0x05, 0x07,              //   Usage Page (Keyboard/Keypad)
+        0x19, (byte) 0xE0,       //   Usage Minimum (Left Control)
+        0x29, (byte) 0xE0,       //   Usage Maximum (Left Control)
+        0x15, 0x00,              //   Logical Minimum (0)
+        0x25, 0x01,              //   Logical Maximum (1)
+        0x75, 0x01,              //   Report Size (1)
+        (byte) 0x95, 0x01,       //   Report Count (1)
+        (byte) 0x81, 0x02,       //   Input (Data, Variable, Absolute): Ctrl sinistro
+        0x75, 0x07,              //   Report Size (7)
+        (byte) 0x95, 0x01,       //   Report Count (1)
+        (byte) 0x81, 0x01,       //   Input (Constant): 7 bit di riempimento
+        (byte) 0xC0,             // End Collection
+    };
+
     private final FileDescriptor fd;
+    private final FileDescriptor keysFd;   // null = niente Ctrl: il pizzico non fa nulla
     private boolean associated;
     private int buttons;
-    private boolean writeErrorLogged;
+    private boolean ctrlDown;
+    private volatile boolean keysReady;   // il sistema ha registrato il Ctrl (vedi check)
+    private boolean writeErrorLogged, keysErrorLogged;
 
-    private VirtualMouse(FileDescriptor fd, boolean associated) {
+    private VirtualMouse(FileDescriptor fd, FileDescriptor keysFd, boolean associated) {
         this.fd = fd;
+        this.keysFd = keysFd;
         this.associated = associated;
     }
 
@@ -110,13 +142,27 @@ final class VirtualMouse {
         FileDescriptor fd = null;
         try {
             fd = Os.open("/dev/uhid", OsConstants.O_RDWR | OsConstants.O_CLOEXEC, 0);
-            write(fd, create2Event());
+            write(fd, create2Event(NAME, PHYS, PRODUCT, REPORT_DESC));
             XLog.i("[touchpad] mouse virtuale creato (uhid" + (assoc ? ", legato al display " + displayId : "") + ")");
-            return new VirtualMouse(fd, assoc);
+            return new VirtualMouse(fd, openKeys(), assoc);
         } catch (Throwable t) {
             XLog.e("[touchpad] /dev/uhid non utilizzabile", t);
             if (fd != null) try { Os.close(fd); } catch (Throwable ignored) {}
             if (assoc) dissociate();
+            return null;
+        }
+    }
+
+    /** Il Ctrl per il pizzico: se non si riesce a crearlo, il mouse funziona lo stesso. */
+    private static FileDescriptor openKeys() {
+        FileDescriptor k = null;
+        try {
+            k = Os.open("/dev/uhid", OsConstants.O_RDWR | OsConstants.O_CLOEXEC, 0);
+            write(k, create2Event(KEYS_NAME, KEYS_PHYS, KEYS_PRODUCT, KEYS_DESC));
+            return k;
+        } catch (Throwable t) {
+            XLog.e("[touchpad] tasto Ctrl virtuale non disponibile: niente zoom col pizzico", t);
+            if (k != null) try { Os.close(k); } catch (Throwable ignored) {}
             return null;
         }
     }
@@ -145,6 +191,49 @@ final class VirtualMouse {
     void release(int button) { buttons &= ~button; send(0, 0, 0, 0); }
     void click(int button)   { press(button); release(button); }
 
+    /**
+     * Il Ctrl virtuale e' pronto (zoom col pizzico)? Solo dopo che il sistema l'ha
+     * registrato: senza, Ctrl+rotella arriverebbe come rotella semplice e il pizzico
+     * farebbe scorrere la pagina invece dello zoom.
+     */
+    boolean hasCtrl() { return keysFd != null && keysReady; }
+
+    /** Il Ctrl e' stato creato ma il sistema non l'ha ancora registrato. */
+    boolean keysPending() { return keysFd != null && !keysReady; }
+
+    /** Nuovo controllo del solo Ctrl, se al primo check() non era ancora visibile. */
+    void checkKeys(Context sys) {
+        if (!keysPending()) return;
+        try {
+            InputManager im = sys.getSystemService(InputManager.class);
+            if (im == null) return;
+            for (int id : im.getInputDeviceIds()) {
+                InputDevice d = im.getInputDevice(id);
+                if (d != null && d.getName() != null && d.getName().startsWith(KEYS_NAME)) {
+                    keysReady = true;
+                    XLog.i("[touchpad] tasto Ctrl virtuale visto dal sistema: zoom col pizzico attivo");
+                    return;
+                }
+            }
+        } catch (Throwable t) { XLog.e("[touchpad] controllo del tasto Ctrl virtuale fallito", t); }
+    }
+
+    /** Preme o rilascia Ctrl. false se il tasto non c'e' o l'invio non riesce. */
+    boolean ctrl(boolean down) {
+        if (keysFd == null) return false;
+        if (down == ctrlDown) return true;
+        ByteBuffer b = ByteBuffer.allocate(4 + 2 + 1).order(ByteOrder.LITTLE_ENDIAN);
+        b.putInt(UHID_INPUT2).putShort((short) 1).put((byte) (down ? 1 : 0));
+        try {
+            write(keysFd, b.array());
+            ctrlDown = down;
+            return true;
+        } catch (Throwable t) {
+            if (!keysErrorLogged) { keysErrorLogged = true; XLog.e("[touchpad] invio del tasto Ctrl fallito", t); }
+            return false;
+        }
+    }
+
     private void send(int dx, int dy, int wheel, int pan) {
         ByteBuffer b = ByteBuffer.allocate(4 + 2 + 5).order(ByteOrder.LITTLE_ENDIAN);
         b.putInt(UHID_INPUT2).putShort((short) 5)
@@ -157,6 +246,15 @@ final class VirtualMouse {
     }
 
     void close() {
+        if (keysFd != null) {
+            try { if (ctrlDown) ctrl(false); } catch (Throwable ignored) {}
+            try {
+                ByteBuffer k = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN);
+                k.putInt(UHID_DESTROY);
+                write(keysFd, k.array());
+            } catch (Throwable ignored) {}
+            try { Os.close(keysFd); } catch (Throwable ignored) {}
+        }
         try { if (buttons != 0) { buttons = 0; send(0, 0, 0, 0); } } catch (Throwable ignored) {}
         try {
             ByteBuffer b = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN);
@@ -176,20 +274,29 @@ final class VirtualMouse {
         try {
             InputManager im = sys.getSystemService(InputManager.class);
             if (im == null) return;
+            InputDevice mouseDev = null;
+            int mouseId = -1;
+            boolean keysSeen = false;
             for (int id : im.getInputDeviceIds()) {
                 InputDevice d = im.getInputDevice(id);
-                if (d == null || d.getName() == null || !d.getName().startsWith(NAME)) continue;
-                boolean enabled = d.isEnabled();
-                XLog.i("[touchpad] il sistema vede il mouse virtuale (dispositivo " + id + ", "
-                        + (enabled ? "attivo" : "DISATTIVATO") + ", sorgenti 0x" + Integer.toHexString(d.getSources()) + ")");
-                if (!enabled && associated) {
-                    dissociate();
-                    associated = false;
-                    XLog.i("[touchpad] tolgo il legame al display: il puntatore seguira' il mouse di sistema");
-                }
-                return;
+                if (d == null || d.getName() == null) continue;
+                if (d.getName().startsWith(KEYS_NAME)) { keysSeen = true; continue; }
+                if (mouseDev == null && d.getName().startsWith(NAME)) { mouseDev = d; mouseId = id; }
             }
-            XLog.i("[touchpad] il sistema non vede (ancora) il mouse virtuale");
+            if (keysFd != null) {
+                keysReady = keysSeen;
+                XLog.i("[touchpad] tasto Ctrl virtuale " + (keysSeen ? "visto dal sistema: zoom col pizzico attivo"
+                                                                     : "non (ancora) visto dal sistema"));
+            }
+            if (mouseDev == null) { XLog.i("[touchpad] il sistema non vede (ancora) il mouse virtuale"); return; }
+            boolean enabled = mouseDev.isEnabled();
+            XLog.i("[touchpad] il sistema vede il mouse virtuale (dispositivo " + mouseId + ", "
+                    + (enabled ? "attivo" : "DISATTIVATO") + ", sorgenti 0x" + Integer.toHexString(mouseDev.getSources()) + ")");
+            if (!enabled && associated) {
+                dissociate();
+                associated = false;
+                XLog.i("[touchpad] tolgo il legame al display: il puntatore seguira' il mouse di sistema");
+            }
         } catch (Throwable t) { XLog.e("[touchpad] controllo del mouse virtuale fallito", t); }
     }
 
@@ -230,23 +337,23 @@ final class VirtualMouse {
     // ------------------------------------------------------------------
     // strutture uhid
     // ------------------------------------------------------------------
-    private static byte[] create2Event() {
+    private static byte[] create2Event(String name, String phys, int product, byte[] desc) {
         // struct uhid_event { u32 type; struct uhid_create2_req {
         //   u8 name[128]; u8 phys[64]; u8 uniq[64]; u16 rd_size; u16 bus;
         //   u32 vendor; u32 product; u32 version; u32 country; u8 rd_data[]; } } __packed
-        ByteBuffer b = ByteBuffer.allocate(4 + 128 + 64 + 64 + 2 + 2 + 4 * 4 + REPORT_DESC.length)
+        ByteBuffer b = ByteBuffer.allocate(4 + 128 + 64 + 64 + 2 + 2 + 4 * 4 + desc.length)
                 .order(ByteOrder.LITTLE_ENDIAN);
         b.putInt(UHID_CREATE2);
-        putFixed(b, NAME, 128);
-        putFixed(b, PHYS, 64);
+        putFixed(b, name, 128);
+        putFixed(b, phys, 64);
         putFixed(b, "", 64);
-        b.putShort((short) REPORT_DESC.length);
+        b.putShort((short) desc.length);
         b.putShort(BUS_VIRTUAL);
         b.putInt(VENDOR);
-        b.putInt(PRODUCT);
+        b.putInt(product);
         b.putInt(0);   // version
         b.putInt(0);   // country
-        b.put(REPORT_DESC);
+        b.put(desc);
         return b.array();
     }
 

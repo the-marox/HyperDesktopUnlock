@@ -143,6 +143,7 @@ public class SettingsActivity extends Activity {
         toggle(R.string.shortcuts_title, 0, Prefs.K_SHORTCUTS, Prefs.D_SHORTCUTS, false);
         note(getString(R.string.shortcuts_list));
         toggle(R.string.switcher_title, R.string.switcher_summary, Prefs.K_SWITCHER, Prefs.D_SWITCHER, false);
+        imeWarningRow();
 
         section(R.string.section_diag);
         diagnosticsRow();
@@ -155,6 +156,47 @@ public class SettingsActivity extends Activity {
     // diagnostica
     // ------------------------------------------------------------------
     private static final String ISSUES_URL = "https://github.com/the-marox/HyperDesktopUnlock/issues/new";
+
+    /**
+     * Avviso, visibile solo se serve: "Mostra tastiera virtuale" acceso con la tastiera
+     * fisica blocca le lettere in alcune app sul monitor. Il valore lo legge
+     * system_server (l'app non puo' leggere quell'impostazione nascosta) e, su
+     * richiesta, lo spegne.
+     */
+    private void imeWarningRow() {
+        final TextView warn = note(getString(R.string.ime_warning));
+        final Button fix = new Button(this);
+        fix.setAllCaps(false);
+        fix.setText(R.string.ime_warning_button);
+        root.addView(fix, matchWidth());
+        warn.setVisibility(View.GONE);
+        fix.setVisibility(View.GONE);
+        fix.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                fix.setEnabled(false);
+                ModuleClient.send(SettingsActivity.this, "show_ime_off", false, new ModuleClient.Callback() {
+                    @Override public void onResult(String data) {
+                        if (isFinishing() || isDestroyed()) return;
+                        Map<String, String> s = ModuleClient.parse(data);
+                        boolean off = s != null && "0".equals(s.get("show_ime"));
+                        if (off) { warn.setVisibility(View.GONE); fix.setVisibility(View.GONE); }
+                        else fix.setEnabled(true);
+                        Toast.makeText(SettingsActivity.this,
+                                off ? R.string.ime_warning_done : R.string.ime_warning_failed, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
+        ModuleClient.send(this, "status", false, new ModuleClient.Callback() {
+            @Override public void onResult(String data) {
+                if (isFinishing() || isDestroyed()) return;
+                Map<String, String> s = ModuleClient.parse(data);
+                int vis = s != null && "1".equals(s.get("show_ime")) ? View.VISIBLE : View.GONE;
+                warn.setVisibility(vis);
+                fix.setVisibility(vis);
+            }
+        });
+    }
 
     private void diagnosticsRow() {
         final TextView status = note(getString(R.string.diag_checking));
@@ -200,7 +242,8 @@ public class SettingsActivity extends Activity {
     private void createReport() {
         final Toast wait = Toast.makeText(this, R.string.diag_collecting, Toast.LENGTH_SHORT);
         wait.show();
-        ModuleClient.send(this, "status", true, new ModuleClient.Callback() {
+        // "report" = status + diagnostica completa, compresa la disposizione del monitor
+        ModuleClient.send(this, "report", true, new ModuleClient.Callback() {
             @Override public void onResult(String data) {
                 if (isFinishing() || isDestroyed()) return;
                 showReport(buildReport(data));

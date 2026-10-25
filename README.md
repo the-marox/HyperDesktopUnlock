@@ -138,6 +138,12 @@ update renamed something) — please include that line in bug reports.
 | Monitor density (dpi) | not set | 100–800, or 0 for the monitor's default. Never touched until you set it; clear the field and Apply to stop changing it |
 | Monitor resolution | not set | Picked from the sizes that fit the connected monitor, or Native. Lower = bigger UI, lighter on the GPU |
 | Monitor refresh rate (Hz) | not set | Picked from the rates the monitor reports, or Native |
+| Desktop keyboard shortcuts | on | Alt+Tab and all the shortcuts below |
+| Alt+Tab preview bar | on | Hold Alt for a Windows-style bar of the open apps; off = switch instantly on each Tab |
+
+If *Show on-screen keyboard* is on while you use a physical keyboard, the
+Keyboard section shows a warning with a **Turn it off** button (see
+[If something goes wrong](#if-something-goes-wrong)).
 
 ### Touchpad (phone screen black, touch on)
 
@@ -147,6 +153,7 @@ update renamed something) — please include that line in bug reports.
 | Tap | Click |
 | Tap, then touch and move | Drag |
 | Two fingers | Scroll (natural direction, like on the phone) |
+| Spread or pinch two fingers | Zoom (sent as Ctrl+wheel: works in apps that zoom with Ctrl+wheel, such as browsers) |
 | Two-finger tap | Right click |
 | Three fingers | Phone back to normal (so does Win+P) |
 
@@ -156,8 +163,6 @@ the on-screen keyboard opens on the phone and the touchpad shrinks above it.
 Pointer speed: *Touchpad sensitivity* in the module's settings, on top of the
 system's pointer speed. The black screen shows a hint of the gestures for
 15 seconds when it appears, then nothing.
-| Desktop keyboard shortcuts | on | Alt+Tab and all the shortcuts below |
-| Alt+Tab preview bar | on | Hold Alt for a Windows-style bar of the open apps; off = switch instantly on each Tab |
 
 ### Keyboard shortcuts (physical keyboard, desktop mode only)
 
@@ -192,8 +197,9 @@ Both need the phone unlocked.
 - Open the module's settings → **Diagnostics**. The status line says whether the
   module is running in the system, whether a reboot is needed, and which parts
   did not attach. **Create diagnostic report** collects the phone model, Android
-  and HyperOS version, the settings and the module's recent log lines from the
-  system and SystemUI; copy it, share it, or tap *Report on GitHub* and paste it.
+  and HyperOS version, the settings, the windows and insets on the monitor, and
+  the module's recent log lines from the system and SystemUI; copy it, share it,
+  or tap *Report on GitHub* and paste it.
 - Or check the `[diag]` lines: `adb logcat -s HyperDesktop | grep diag`.
 - **Physical-keyboard text doesn't show up in apps on the monitor until you lock
   and unlock the phone** (Delete and Backspace work, letters don't): turn off
@@ -201,7 +207,8 @@ Both need the phone unlocked.
   `adb shell settings put secure show_ime_with_hard_keyboard 0`. With it on, the
   keyboard app keeps an on-screen keyboard session open for the app on the monitor
   and the letters get stuck in it. Apps with a plain text field (WhatsApp, for
-  example) may work either way, which makes it look app-specific.
+  example) may work either way, which makes it look app-specific. Since 1.11.0
+  the module's settings warn you when it's on and can turn it off for you.
 - LSPosed disables a module automatically after repeated system crashes.
 - Otherwise, with the phone plugged into a PC while booting:
   ```
@@ -291,9 +298,12 @@ nero, un dito muove il puntatore, un tocco fa clic, due dita scorrono. Dalla
 i riquadri rapidi *Monitor* (Computer ↔ Mirroring) e *Touchpad*, e nelle
 impostazioni c'è un report diagnostico da allegare alle segnalazioni. Le finestre
 ridimensionabili in stile AOSP non sono disponibili su questa build: Xiaomi
-non le espone e le finestre "mobili" di HyperOS hanno dimensione fissa.
+non le espone e le finestre "mobili" di HyperOS hanno dimensione fissa. Dalla
+1.11 allargando o stringendo due dita sul touchpad si fa lo zoom (Ctrl+rotella,
+nelle app che lo supportano, come i browser).
 
 Se il testo dalla tastiera fisica non compare nelle app sul monitor finché non
 blocchi e sblocchi il telefono (Canc e Backspace funzionano, le lettere no),
 disattiva *Mostra tastiera virtuale* nelle impostazioni della tastiera fisica,
-oppure `settings put secure show_ime_with_hard_keyboard 0`.
+oppure `settings put secure show_ime_with_hard_keyboard 0`. Dalla 1.11 le
+impostazioni del modulo te lo segnalano e possono disattivarlo con un tocco.

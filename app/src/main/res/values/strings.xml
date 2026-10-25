@@ -57,6 +57,10 @@
     <string name="shortcuts_title">Desktop keyboard shortcuts</string>
     <string name="switcher_title">Alt+Tab preview bar</string>
     <string name="switcher_summary">Hold Alt to see the open apps on the monitor and release Alt to switch. Off = switch instantly on each Tab.</string>
+    <string name="ime_warning">Warning: \"Show on-screen keyboard\" is on while a physical keyboard is used. In some apps on the monitor the letters you type only show up after you lock and unlock the phone (Delete and Backspace still work).</string>
+    <string name="ime_warning_button">Turn it off</string>
+    <string name="ime_warning_done">\"Show on-screen keyboard\" turned off</string>
+    <string name="ime_warning_failed">Couldn\'t change it: turn off \"Show on-screen keyboard\" in the physical keyboard settings</string>
     <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — switch apps on the monitor\nPrint Screen · Win+Shift+S — screenshot of the monitor\nWin+Shift+Arrow — move an app between monitor and phone\nAlt+F4 — close the app on the monitor\nWin+D — show the dock\'s desktop\nWin+Backspace — Back\nWin+1…9 — focus the Nth app\nWin+P — phone screen on/off</string>
 
     <string name="section_updates">Updates</string>
