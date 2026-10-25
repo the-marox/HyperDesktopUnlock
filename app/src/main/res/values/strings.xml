@@ -57,6 +57,8 @@
     <string name="shortcuts_title">Desktop keyboard shortcuts</string>
     <string name="switcher_title">Alt+Tab preview bar</string>
     <string name="switcher_summary">Hold Alt to see the open apps on the monitor and release Alt to switch. Off = switch instantly on each Tab.</string>
+    <string name="reconnect_title">Fix keyboard on connect</string>
+    <string name="reconnect_summary">Apps opened on the monitor sometimes don\'t receive physical-keyboard text until you lock and unlock the phone once. This reproduces that focus refresh automatically when the monitor connects or you unlock. Turn it off if you ever notice a brief focus flicker.</string>
     <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — switch apps on the monitor\nPrint Screen · Win+Shift+S — screenshot of the monitor\nWin+Shift+Arrow — move an app between monitor and phone\nAlt+F4 — close the app on the monitor\nWin+D — show the dock\'s desktop\nWin+Backspace — Back\nWin+1…9 — focus the Nth app\nWin+P — phone screen on/off</string>
 
     <string name="section_updates">Updates</string>

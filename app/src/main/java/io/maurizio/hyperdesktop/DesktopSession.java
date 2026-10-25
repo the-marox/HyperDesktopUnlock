@@ -38,6 +38,7 @@ final class DesktopSession {
 
     private static final int USER_CURRENT  = -2;
     private static final int APPLY_DELAY_MS = 1500;   // display completamente registrato
+    private static final int RECONNECT_DELAY_MS = 2800;   // dopo la configurazione: rifa' il giro di focus
 
     private static PowerManager.WakeLock wakeLock;
     private static boolean receiverRegistered;
@@ -54,6 +55,11 @@ final class DesktopSession {
                 if (ExternalDisplayGate.externalId == displayId) applyDisplayConfig(displayId);
             }
         }, APPLY_DELAY_MS);
+        AltTabHooks.handler().postDelayed(new Runnable() {
+            @Override public void run() {
+                if (ExternalDisplayGate.externalId == displayId) InputReconnect.nudge("collegamento");
+            }
+        }, RECONNECT_DELAY_MS);
     }
 
     static void onExternalRemoved() {

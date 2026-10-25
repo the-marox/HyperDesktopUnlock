@@ -143,6 +143,7 @@ public class SettingsActivity extends Activity {
         toggle(R.string.shortcuts_title, 0, Prefs.K_SHORTCUTS, Prefs.D_SHORTCUTS, false);
         note(getString(R.string.shortcuts_list));
         toggle(R.string.switcher_title, R.string.switcher_summary, Prefs.K_SWITCHER, Prefs.D_SWITCHER, false);
+        toggle(R.string.reconnect_title, R.string.reconnect_summary, Prefs.K_IME_RECONNECT, Prefs.D_IME_RECONNECT, false);
 
         section(R.string.section_diag);
         diagnosticsRow();

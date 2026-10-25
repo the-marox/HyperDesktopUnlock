@@ -255,6 +255,9 @@ public final class PhoneScreen {
                         handler().postDelayed(new Runnable() {
                             @Override public void run() { tryTurnOff("sblocco"); }
                         }, 800);
+                        if (ExternalDisplayGate.present) handler().postDelayed(new Runnable() {
+                            @Override public void run() { InputReconnect.nudge("sblocco"); }
+                        }, 1200);
                     }
                 }
             };

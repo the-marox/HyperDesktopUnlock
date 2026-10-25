@@ -32,7 +32,6 @@ public class MainHook implements IXposedHookLoadPackage {
                 safe("mirror-policy", () -> MirrorPolicyHooks.hook(lp));
                 safe("keys",          () -> AltTabHooks.hook(lp));
                 safe("control",       ModuleControl::startSystemServer);
-                safe("reconnect-probe", () -> InputReconnect.probe(lp.classLoader));
                 Prefs.warmUp();
                 Diag.summary("system_server");
                 break;
