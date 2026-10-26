@@ -158,7 +158,12 @@ final class RawTouch {
                 int n;
                 try { n = Os.read(fd, buf, 0, buf.length); }
                 catch (android.system.ErrnoException e) { if (e.errno == OsConstants.EAGAIN) continue; throw e; }
-                if (n <= 0) continue;
+                // 0 = fine del file: il nodo non esiste piu'. Il poll lo segnalerebbe
+                // sempre come pronto e il thread girerebbe a vuoto a priorita' massima
+                // dentro system_server: usciamo (il finally chiude il nodo e il gesto).
+                // Il touchpad continua con i tocchi della sua finestra.
+                if (n == 0) { XLog.i("[touchpad] lettura diretta: nodo chiuso, mi fermo"); break; }
+                if (n < 0) continue;
                 ByteBuffer bb = ByteBuffer.wrap(buf, 0, n).order(ByteOrder.LITTLE_ENDIAN);
                 for (int off = 0; off + EVENT_SIZE <= n; off += EVENT_SIZE) {
                     int type = bb.getShort(off + 16) & 0xffff;

@@ -76,6 +76,11 @@ final class DesktopShortcuts {
         if (action == KeyEvent.ACTION_UP) return consumedDowns.remove(code);
         if (action != KeyEvent.ACTION_DOWN) return false;
         if (ev.getRepeatCount() > 0) return consumedDowns.contains(code);
+        // Nuova pressione di questo tasto: la precedente e' per forza finita. Se il suo
+        // rilascio non ci e' arrivato, la voce rimasta farebbe consumare il rilascio di
+        // QUESTA pressione (che magari passa all'app) e l'app vedrebbe il tasto bloccato
+        // giu'. La togliamo prima di decidere; se la combinazione vale, torna sotto.
+        consumedDowns.remove(code);
         if (!ExternalDisplayGate.present) return false;
 
         final Action a = match(ev);

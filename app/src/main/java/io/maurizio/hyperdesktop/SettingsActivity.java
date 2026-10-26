@@ -360,9 +360,15 @@ public class SettingsActivity extends Activity {
         }
     }
 
-    /** Chiede a system_server di rileggere e riapplicare subito le impostazioni. */
+    /**
+     * Chiede a system_server di rileggere e riapplicare subito le impostazioni.
+     * Il permesso vale nei due sensi: il ricevitore accetta solo chi lo ha (la nostra
+     * firma), e il broadcast arriva solo a chi lo ha. system_server, dove sta il
+     * ricevitore, supera sempre i controlli; un'app qualsiasi che si registrasse per
+     * la stessa azione non lo riceve.
+     */
     private void applyNow() {
-        try { sendBroadcast(new Intent(Prefs.ACTION_APPLY)); } catch (Throwable ignored) {}
+        try { sendBroadcast(new Intent(Prefs.ACTION_APPLY), Prefs.PERMISSION_APPLY); } catch (Throwable ignored) {}
     }
 
     // ------------------------------------------------------------------

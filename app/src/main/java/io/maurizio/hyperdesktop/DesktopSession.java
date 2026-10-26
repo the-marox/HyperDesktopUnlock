@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
+import android.os.Handler;
 import android.os.PowerManager;
 import android.view.Display;
 
@@ -38,6 +39,18 @@ final class DesktopSession {
 
     private static final int USER_CURRENT  = -2;
     private static final int APPLY_DELAY_MS = 1500;   // display completamente registrato
+
+    /**
+     * "Tieni acceso" e' un affitto: il wakelock ha una scadenza e viene rinnovato
+     * finche' la sessione e' attiva. Se il rinnovo si ferma (rilascio mai arrivato,
+     * thread perso), il wakelock scade da solo invece di tenere lo schermo acceso
+     * fino al riavvio. Con tutto in ordine il comportamento e' quello di sempre.
+     */
+    private static final long KEEP_AWAKE_LEASE_MS = 30 * 60_000L;
+    private static final long KEEP_AWAKE_RENEW_MS = 10 * 60_000L;
+    private static final Runnable RENEW_KEEP_AWAKE = new Runnable() {
+        @Override public void run() { setKeepAwake(Prefs.keepAwake()); }
+    };
 
     private static PowerManager.WakeLock wakeLock;
     private static boolean receiverRegistered;
@@ -108,7 +121,10 @@ final class DesktopSession {
         } catch (Throwable ignored) {}
         if (!ExternalDisplayGate.present) return;
         AltTabHooks.handler().post(new Runnable() {
-            @Override public void run() { registerApplyReceiver(); }
+            @Override public void run() {
+                registerApplyReceiver();
+                setKeepAwake(Prefs.keepAwake());   // il rinnovo era sul thread perso
+            }
         });
     }
 
@@ -195,12 +211,18 @@ final class DesktopSession {
             int hz;
             try { hz = Integer.parseInt(s); } catch (NumberFormatException e) { return; }
             Display.Mode cur = d.getMode();
+            // Tolleranza di mezzo Hz: 59.94 vale 60, 119.88 vale 120. Se la modalita'
+            // attuale va gia' bene non si tocca nulla (un cambio di modalita' fa
+            // lampeggiare il monitor); altrimenti la piu' vicina, non la prima della
+            // lista: con 60.00 e 59.94 entrambe presenti, si sceglieva a caso.
+            if (Math.abs(cur.getRefreshRate() - hz) < 0.5f) return;
             Display.Mode best = null;
+            float bestDiff = 0.5f;
             for (Display.Mode m : d.getSupportedModes()) {
                 if (m.getPhysicalWidth() != cur.getPhysicalWidth()
                         || m.getPhysicalHeight() != cur.getPhysicalHeight()) continue;
-                if (Math.round(m.getRefreshRate()) != hz) continue;
-                best = m; break;
+                float diff = Math.abs(m.getRefreshRate() - hz);
+                if (diff < bestDiff) { best = m; bestDiff = diff; }
             }
             if (best == null) {
                 XLog.i("[session] il monitor non supporta " + cur.getPhysicalWidth() + "x"
@@ -233,11 +255,13 @@ final class DesktopSession {
     // ------------------------------------------------------------------
     // tieni acceso
     // ------------------------------------------------------------------
+    /** Sempre sul thread di AltTabHooks (lo stesso del rinnovo). */
     @SuppressWarnings("deprecation")
     private static void setKeepAwake(boolean on) {
         try {
-            if (on) {
-                if (!ExternalDisplayGate.present) return;
+            Handler h = AltTabHooks.handler();
+            h.removeCallbacks(RENEW_KEEP_AWAKE);
+            if (on && ExternalDisplayGate.present) {
                 if (wakeLock == null) {
                     Context ctx = AltTabHooks.systemContext();
                     if (ctx == null) return;
@@ -245,10 +269,10 @@ final class DesktopSession {
                     wakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "HyperDesktop:desktop");
                     wakeLock.setReferenceCounted(false);
                 }
-                if (!wakeLock.isHeld()) {
-                    wakeLock.acquire();
-                    XLog.i("[session] tieni acceso: ATTIVO");
-                }
+                boolean wasHeld = wakeLock.isHeld();
+                wakeLock.acquire(KEEP_AWAKE_LEASE_MS);   // anche se gia' tenuto: la scadenza riparte
+                h.postDelayed(RENEW_KEEP_AWAKE, KEEP_AWAKE_RENEW_MS);
+                if (!wasHeld) XLog.i("[session] tieni acceso: ATTIVO");
             } else if (wakeLock != null && wakeLock.isHeld()) {
                 wakeLock.release();
                 XLog.i("[session] tieni acceso: rilasciato");

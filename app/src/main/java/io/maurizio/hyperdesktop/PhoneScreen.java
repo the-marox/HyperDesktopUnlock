@@ -241,9 +241,12 @@ public final class PhoneScreen {
                         return;
                     }
                     if (Intent.ACTION_SCREEN_ON.equals(a)) {
-                        // il sistema ha riacceso lo schermo (risveglio): il nostro stato non vale piu'
-                        if (touchpadMode) { Touchpad.hide(); touchpadMode = false; }
-                        turnedOff = false;
+                        // Risveglio: di norma il sistema ha gia' riacceso il pannello, ma non lo
+                        // diamo per scontato. restore() lo riaccende se serve e, se non ci
+                        // riesce, TIENE lo stato "spento": cosi' Win+P puo' ancora recuperarlo
+                        // (prima lo stato si azzerava e Win+P provava a spegnere un pannello
+                        // gia' nero). Il receiver gira sul nostro thread (handler()).
+                        restore("risveglio");
                         return;
                     }
                     if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(a)) {
