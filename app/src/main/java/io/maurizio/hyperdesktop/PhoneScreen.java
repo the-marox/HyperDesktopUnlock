@@ -10,12 +10,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.display.DisplayManager;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
+import android.view.Display;
 
 import de.robv.android.xposed.XposedHelpers;
 
@@ -283,21 +285,50 @@ public final class PhoneScreen {
         }
     }
 
+    /**
+     * Il token del pannello del TELEFONO. Si riconosce dal flag isInternal oppure, se
+     * illeggibile, dall'indirizzo fisico del display principale (display 0). Mai "il primo
+     * display della lista": con il monitor collegato potrebbe essere il monitor, e lo
+     * spegneremmo al posto del telefono (fino alla 1.12.2 era il ripiego). Se il pannello
+     * non si riconosce con certezza: null, e il telefono resta acceso.
+     */
     private static IBinder internalToken() {
         Class<?> sc = XposedHelpers.findClass("android.view.SurfaceControl", cl);
         Class<?> dc = XposedHelpers.findClassIfExists("com.android.server.display.DisplayControl", cl);
         Class<?> holder = dc != null ? dc : sc;   // Android 14+: DisplayControl
         long[] ids = (long[]) XposedHelpers.callStaticMethod(holder, "getPhysicalDisplayIds");
         if (ids == null || ids.length == 0) return null;
-        IBinder first = null;
+        Long phoneId = null;
+        boolean phoneIdRead = false;
+        IBinder byAddress = null;
         for (long id : ids) {
             IBinder tok = (IBinder) XposedHelpers.callStaticMethod(holder, "getPhysicalDisplayToken", id);
             if (tok == null) continue;
-            if (first == null) first = tok;
             Boolean internal = isInternal(sc, id, tok);
             if (Boolean.TRUE.equals(internal)) return tok;
+            if (internal != null) continue;            // dichiarato esterno: mai questo
+            if (!phoneIdRead) { phoneId = defaultPhysicalId(); phoneIdRead = true; }
+            if (phoneId != null && phoneId == id) byAddress = tok;
         }
-        return first;
+        if (byAddress != null) {
+            if (!panelLogged) { panelLogged = true; XLog.i("[screen] pannello del telefono riconosciuto dall'indirizzo fisico"); }
+            return byAddress;
+        }
+        if (!panelLogged) { panelLogged = true; XLog.i("[screen] pannello del telefono non riconoscibile: non spengo nulla"); }
+        return null;
+    }
+
+    private static boolean panelLogged;
+
+    /** Id fisico del display principale (Display.getAddress(), @hide); null se illeggibile. */
+    private static Long defaultPhysicalId() {
+        try {
+            Context ctx = systemContext();
+            DisplayManager dm = ctx == null ? null : ctx.getSystemService(DisplayManager.class);
+            Display d = dm == null ? null : dm.getDisplay(Display.DEFAULT_DISPLAY);
+            Object addr = d == null ? null : XposedHelpers.callMethod(d, "getAddress");
+            return addr == null ? null : (Long) XposedHelpers.callMethod(addr, "getPhysicalDisplayId");
+        } catch (Throwable t) { return null; }
     }
 
     private static Boolean isInternal(Class<?> sc, long id, IBinder tok) {

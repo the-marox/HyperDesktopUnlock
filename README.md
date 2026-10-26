@@ -237,6 +237,11 @@ Both need the phone unlocked.
   ```
   *Show on-screen keyboard* (`show_ime_with_hard_keyboard`) is changed only
   when you tap *Turn it off* in the module's warning.
+- **Unplug the monitor before uninstalling.** While a monitor is connected
+  the module keeps the dock's accessibility service turned on, and turns it
+  off when you unplug or at boot. Uninstalled with the monitor connected,
+  nothing would turn it off again: in that case switch it off in Settings →
+  Accessibility (the dock's service, e.g. SmartDock).
 
 ## Build
 
@@ -329,3 +334,6 @@ browser), dalla 1.12 c'è l'opzione sperimentale *App sotto la barra di stato de
 monitor*. Prima di disinstallare il modulo, con il monitor collegato, rimetti la
 densità a 0 e risoluzione e frequenza su *Nativa*: Android le ricorda per ogni
 monitor (i comandi adb equivalenti sono nella sezione *If something goes wrong*).
+Poi **scollega il monitor** e solo dopo disinstalla: con il monitor collegato il
+modulo tiene acceso il servizio di accessibilità del dock, e dopo la disinstallazione
+nessuno lo spegnerebbe più (in quel caso: Impostazioni → Accessibilità).

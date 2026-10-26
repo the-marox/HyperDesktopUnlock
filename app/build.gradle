@@ -18,8 +18,8 @@ android {
         applicationId 'io.maurizio.hyperdesktop'
         minSdk 31
         targetSdk 35
-        versionCode 232
-        versionName '1.12.2'
+        versionCode 233
+        versionName '1.12.3'
     }
 
     signingConfigs {
