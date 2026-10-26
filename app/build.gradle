@@ -18,8 +18,8 @@ android {
         applicationId 'io.maurizio.hyperdesktop'
         minSdk 31
         targetSdk 35
-        versionCode 231
-        versionName '1.12.1'
+        versionCode 232
+        versionName '1.12.2'
     }
 
     signingConfigs {
@@ -36,7 +36,9 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
+            // Solo con la chiave vera: un APK di release firmato con la chiave di debug non
+            // si installerebbe sopra quello pubblicato (vedi il controllo in fondo al file).
+            if (keystorePropertiesFile.exists()) signingConfig signingConfigs.release
         }
     }
 
@@ -53,4 +55,14 @@ android {
 dependencies {
     // API Xposed: solo in compilazione, fornita a runtime da LSPosed.
     compileOnly 'de.robv.android.xposed:api:82'
+}
+
+// Una build di release senza la chiave di firma si ferma subito con un messaggio chiaro,
+// invece di produrre un APK firmato con la chiave di debug (comportamento fino alla 1.12.1).
+gradle.taskGraph.whenReady { graph ->
+    if (!keystorePropertiesFile.exists()
+            && graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') }) {
+        throw new GradleException("Build di release senza keystore.properties: crealo (vedi README, Build) " +
+                "oppure usa assembleDebug per una build di prova.")
+    }
 }

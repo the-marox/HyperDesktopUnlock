@@ -224,16 +224,27 @@ Both need the phone unlocked.
   Uninstalling removes the module; nothing else is modified (no system
   partition changes). The persistent side effects are
   `Settings.Secure.mirror_built_in_display = 0` (set it back to `1` to restore
-  the stock behaviour without the module) and, if you set one, the monitor
-  density (`adb shell wm density reset -d <id>`).
+  the stock behaviour without the module) and, only if you set them, the
+  monitor's density, resolution and refresh rate, which Android remembers per
+  monitor. The easiest way back: before uninstalling, with the monitor
+  connected, set the density to 0 and resolution and refresh rate to Native in
+  the module's settings. Or, after uninstalling, with adb (`<id>` is the
+  `monitor=` line of the diagnostic report):
+  ```
+  adb shell wm density reset -d <id>
+  adb shell wm size reset -d <id>
+  adb shell cmd display clear-user-preferred-display-mode <id>
+  ```
+  *Show on-screen keyboard* (`show_ime_with_hard_keyboard`) is changed only
+  when you tap *Turn it off* in the module's warning.
 
 ## Build
 
 Android Studio, or:
 
 ```
-gradle assembleDebug        # debug-signed
-gradle assembleRelease      # signed with keystore.properties if present
+gradle assembleDebug        # debug-signed, for testing
+gradle assembleRelease      # needs keystore.properties: without it the build stops
 ```
 
 Create `keystore.properties` (git-ignored) next to `settings.gradle`:
@@ -315,4 +326,6 @@ oppure `settings put secure show_ime_with_hard_keyboard 0`. Dalla 1.11 le
 impostazioni del modulo te lo segnalano e possono disattivarlo con un tocco.
 Se un'app sul monitor finisce sotto la barra di stato (per esempio le schede di un
 browser), dalla 1.12 c'è l'opzione sperimentale *App sotto la barra di stato del
-monitor*.
+monitor*. Prima di disinstallare il modulo, con il monitor collegato, rimetti la
+densità a 0 e risoluzione e frequenza su *Nativa*: Android le ricorda per ogni
+monitor (i comandi adb equivalenti sono nella sezione *If something goes wrong*).

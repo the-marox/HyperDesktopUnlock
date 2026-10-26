@@ -81,7 +81,7 @@
     <string name="diag_missing">Some parts did not attach: %1$s. Create a report and open an issue on GitHub.</string>
     <string name="diag_no_answer">The system did not answer: the module is not loaded yet. Reboot after installing or updating it (after a reboot it needs about a minute).</string>
     <string name="diag_report_button">Create diagnostic report</string>
-    <string name="diag_note">The report contains your phone model, Android and HyperOS version, these settings and the module\'s recent log lines. Nothing is sent by itself: you choose to copy or share it.</string>
+    <string name="diag_note">The report contains your phone model, Android and HyperOS version, these settings, the module\'s recent log lines and, if a monitor is connected, the apps and window titles open on it. Nothing is sent by itself: you choose to copy or share it.</string>
     <string name="diag_collecting">Collecting…</string>
     <string name="diag_report_title">Diagnostic report</string>
     <string name="diag_copy">Copy</string>

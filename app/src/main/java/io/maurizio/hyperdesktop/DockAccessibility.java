@@ -145,6 +145,14 @@ final class DockAccessibility {
     private static synchronized Handler handler() {
         if (handler == null) {
             HandlerThread t = new HandlerThread("HyperDesktop-dock");
+            // in system_server un'eccezione non gestita ucciderebbe il processo: la fermiamo
+            // qui, e il thread viene ricreato al prossimo uso
+            t.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                @Override public void uncaughtException(Thread th, Throwable e) {
+                    try { XLog.e("[dock] eccezione non gestita sul thread, lo ricreo", e); } catch (Throwable ignored) {}
+                    synchronized (DockAccessibility.class) { handler = null; }
+                }
+            });
             t.start();
             handler = new Handler(t.getLooper());
         }

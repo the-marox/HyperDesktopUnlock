@@ -266,6 +266,19 @@ public final class AltTabHooks {
     static synchronized Handler handler() {
         if (handler == null) {
             HandlerThread t = new HandlerThread("HyperDesktop-alttab");
+            // In system_server un'eccezione non gestita su un thread ucciderebbe il processo
+            // (riavvio del telefono). Qui la fermiamo: la sessione Alt+Tab si chiude, il
+            // ricevitore di DesktopSession (che usava questo Looper) si registra di nuovo e il
+            // thread viene ricreato al prossimo uso.
+            t.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                @Override public void uncaughtException(Thread th, Throwable e) {
+                    try { XLog.e("[alttab] eccezione non gestita sul thread, lo ricreo", e); } catch (Throwable ignored) {}
+                    try { if (previewing) SwitcherOverlay.hide(); } catch (Throwable ignored) {}
+                    session = null; previewing = false; tabConsumed = false;
+                    synchronized (AltTabHooks.class) { handler = null; }
+                    try { DesktopSession.onHandlerLost(); } catch (Throwable ignored) {}
+                }
+            });
             t.start();
             handler = new Handler(t.getLooper());
         }

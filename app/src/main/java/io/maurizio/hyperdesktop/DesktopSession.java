@@ -41,6 +41,7 @@ final class DesktopSession {
 
     private static PowerManager.WakeLock wakeLock;
     private static boolean receiverRegistered;
+    private static BroadcastReceiver applyReceiver;
 
     static void onExternalAdded(final int displayId) {
         AltTabHooks.handler().post(new Runnable() {
@@ -87,8 +88,28 @@ final class DesktopSession {
             };
             ctx.registerReceiver(r, new IntentFilter(Prefs.ACTION_APPLY), Prefs.PERMISSION_APPLY,
                     AltTabHooks.handler(), Context.RECEIVER_EXPORTED);
+            applyReceiver = r;
             receiverRegistered = true;
         } catch (Throwable t) { XLog.e("[session] registerReceiver fallito", t); }
+    }
+
+    /**
+     * Il thread di AltTabHooks e' morto per un'eccezione: il ricevitore usava il suo
+     * Looper e non riceverebbe piu' nulla. Lo si toglie e, se c'e' un monitor, lo si
+     * registra di nuovo sul thread ricreato (altrimenti al prossimo collegamento).
+     */
+    static void onHandlerLost() {
+        BroadcastReceiver r = applyReceiver;
+        applyReceiver = null;
+        receiverRegistered = false;
+        try {
+            Context c = AltTabHooks.systemContext();
+            if (r != null && c != null) c.unregisterReceiver(r);
+        } catch (Throwable ignored) {}
+        if (!ExternalDisplayGate.present) return;
+        AltTabHooks.handler().post(new Runnable() {
+            @Override public void run() { registerApplyReceiver(); }
+        });
     }
 
     // ------------------------------------------------------------------

@@ -70,7 +70,7 @@
     <string name="diag_missing">Alcune parti non si sono agganciate: %1$s. Crea un report e apri una segnalazione su GitHub.</string>
     <string name="diag_no_answer">Il sistema non risponde: il modulo non è ancora caricato. Riavvia dopo averlo installato o aggiornato (dopo un riavvio serve circa un minuto).</string>
     <string name="diag_report_button">Crea report diagnostico</string>
-    <string name="diag_note">Il report contiene il modello del telefono, la versione di Android e HyperOS, queste impostazioni e le ultime righe di log del modulo. Non viene inviato da solo: sei tu a copiarlo o condividerlo.</string>
+    <string name="diag_note">Il report contiene il modello del telefono, la versione di Android e HyperOS, queste impostazioni, le ultime righe di log del modulo e, se c\'è un monitor collegato, le app e i titoli delle finestre aperte su di esso. Non viene inviato da solo: sei tu a copiarlo o condividerlo.</string>
     <string name="diag_collecting">Raccolta in corso…</string>
     <string name="diag_report_title">Report diagnostico</string>
     <string name="diag_copy">Copia</string>
