@@ -34,6 +34,8 @@ import de.robv.android.xposed.XposedHelpers;
  * impostazioni. Si puo' disattivare (Prefs.manageA11y), letto al momento dell'uso.
  * Il servizio attivato al collegamento viene ricordato e disattivato allo stacco
  * anche se nel frattempo il dock o l'interruttore sono cambiati.
+ * Il desktop del dock si apre solo quando questo servizio e' collegato (vedi
+ * LauncherHooks.launchWhenReady): l'ordine evita il crash di SmartDock all'avvio.
  */
 final class DockAccessibility {
 
@@ -134,7 +136,18 @@ final class DockAccessibility {
         }
     }
 
-    private static ComponentName findService(Context ctx, String pkg) {
+    /** Il servizio e' nell'elenco dei servizi di accessibilita' attivati? (anche da SystemUI) */
+    static boolean enabledInSettings(Context ctx, ComponentName svc) {
+        String cur = Settings.Secure.getString(ctx.getContentResolver(), KEY_SERVICES);
+        if (TextUtils.isEmpty(cur)) return false;
+        for (String s : cur.split(":")) {
+            if (!s.isEmpty() && svc.equals(ComponentName.unflattenFromString(s))) return true;
+        }
+        return false;
+    }
+
+    /** Servizio di accessibilita' del pacchetto, o null (anche da SystemUI, vedi LauncherHooks). */
+    static ComponentName findService(Context ctx, String pkg) {
         Intent q = new Intent("android.accessibilityservice.AccessibilityService")
                 .setPackage(pkg);
         List<ResolveInfo> r = ctx.getPackageManager().queryIntentServices(q, 0);

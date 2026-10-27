@@ -151,18 +151,12 @@ final class ModuleControl {
                     else XLog.i("[control] nessun monitor in desktop dopo il cambio");
                     return;
                 }
-                int id = ExternalDisplayGate.externalId;
                 DockAccessibility.onExternalAdded();
                 PhoneScreen.onDesktopResumed();
                 if (!Prefs.autoLaunch()) return;
-                try {
-                    Intent di = LauncherHooks.desktopIntent(c, Prefs.launcherPkg());
-                    if (di != null) {
-                        LauncherHooks.startOnDisplay(c, di, id);
-                        XLog.i("[control] dock avviato sul display " + id);
-                    }
-                    LauncherHooks.launchExtras(c, id, handler());
-                } catch (Throwable t) { XLog.e("[control] avvio del dock fallito", t); }
+                // come dopo la scelta "Computer": il desktop si apre quando il servizio
+                // del dock e' collegato (vedi LauncherHooks)
+                LauncherHooks.launchWhenReady(c, handler(), true, 0, "riquadro Monitor");
             }
         }, tries == 0 ? 1500 : 500);
     }
