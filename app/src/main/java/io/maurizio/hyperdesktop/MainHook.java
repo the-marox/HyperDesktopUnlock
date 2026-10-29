@@ -40,6 +40,7 @@ public class MainHook implements IXposedHookLoadPackage {
                 safe("desktop-flags", () -> DesktopModeHooks.hook(lp, "systemui"));
                 safe("dialog",        () -> ConnectDialogHooks.hook(lp));
                 safe("auto-launch",   () -> LauncherHooks.hook(lp));
+                safe("mirror-trace",  () -> SettingsGuardHooks.traceSystemUi(lp));
                 safe("report",        () -> ModuleControl.hookSystemUi(lp));
                 Prefs.warmUp();
                 Diag.summary(lp.processName);

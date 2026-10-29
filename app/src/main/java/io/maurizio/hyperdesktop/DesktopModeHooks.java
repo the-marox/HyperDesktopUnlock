@@ -6,11 +6,16 @@
 package io.maurizio.hyperdesktop;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import dalvik.system.DexFile;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
@@ -31,6 +36,11 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
  *    gate globali faceva crashare SystemUI su HyperOS 4 beta senza benefici, e
  *    disattivare enforceDeviceRestrictions porta al bootloop: non lo facciamo.
  *    (Il codice sperimentale e' nella storia del progetto, tag v1.4.1.)
+ *  - Se un gate e' un'interfaccia (DesktopState su HyperOS 4 stabile, es.
+ *    Xiaomi 14 houji) i suoi metodi sono astratti e non si possono agganciare:
+ *    si cercano le classi che la implementano nell'APK del processo e si
+ *    agganciano quelle. Senza, SystemUI considera il monitor "non desktop" e la
+ *    scelta Computer ricade nel mirroring (issue #2).
  */
 public final class DesktopModeHooks {
 
@@ -63,7 +73,15 @@ public final class DesktopModeHooks {
         int n = 0;
         for (String cn : GATE_CLASSES) {
             Class<?> cls = XposedHelpers.findClassIfExists(cn, lp.classLoader);
-            if (cls != null) n += hookClass(lp.classLoader, cls, where, true);
+            if (cls == null) continue;
+            if (cls.isInterface()) {
+                n += hookClass(lp.classLoader, cls, where, true);   // solo i metodi default
+                for (Class<?> impl : implementations(lp, cls, where)) {
+                    n += hookClass(lp.classLoader, impl, where, true);
+                }
+            } else {
+                n += hookClass(lp.classLoader, cls, where, true);
+            }
         }
         for (String cn : PER_DISPLAY_ONLY_CLASSES) {
             Class<?> cls = XposedHelpers.findClassIfExists(cn, lp.classLoader);
@@ -78,6 +96,7 @@ public final class DesktopModeHooks {
         int n = 0;
         for (final Method m : cls.getDeclaredMethods()) {
             final String name = m.getName();
+            if (Modifier.isAbstract(m.getModifiers())) continue;
             if (m.getReturnType() == boolean.class && name.contains("OnDisplay")) {
                 if (hookPerDisplay(m, where)) n++;
                 continue;
@@ -91,6 +110,41 @@ public final class DesktopModeHooks {
         }
         XLog.i("[" + where + "] " + cls.getName() + ": " + n + " gate forzati");
         return n;
+    }
+
+    /**
+     * Classi concrete che implementano l'interfaccia gate, cercate tra le classi
+     * dell'APK del processo il cui nome fa pensare al desktop (WMShell non e'
+     * offuscato nei nomi delle classi). Vuoto se l'APK non e' leggibile.
+     */
+    private static List<Class<?>> implementations(LoadPackageParam lp, Class<?> iface, String where) {
+        List<Class<?>> out = new ArrayList<>();
+        if (lp.appInfo == null || lp.appInfo.sourceDir == null) return out;
+        DexFile dex = null;
+        try {
+            dex = new DexFile(lp.appInfo.sourceDir);
+            for (Enumeration<String> e = dex.entries(); e.hasMoreElements(); ) {
+                String cn = e.nextElement();
+                if (!cn.startsWith("com.android.wm.shell") || !cn.contains("Desktop")) continue;
+                try {
+                    Class<?> c = Class.forName(cn, false, lp.classLoader);
+                    if (c != iface && !c.isInterface() && !Modifier.isAbstract(c.getModifiers())
+                            && iface.isAssignableFrom(c)) out.add(c);
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable t) {
+            XLog.e("[" + where + "] ricerca delle implementazioni di " + iface.getName() + " fallita", t);
+        } finally {
+            if (dex != null) try { dex.close(); } catch (Throwable ignored) {}
+        }
+        XLog.i("[" + where + "] " + iface.getName() + ": " + out.size() + " implementazioni " + names(out));
+        return out;
+    }
+
+    private static String names(List<Class<?>> cs) {
+        StringBuilder sb = new StringBuilder("[");
+        for (Class<?> c : cs) sb.append(sb.length() > 1 ? ", " : "").append(c.getName());
+        return sb.append(']').toString();
     }
 
     private static boolean hookPerDisplay(Method m, final String where) {
@@ -113,7 +167,10 @@ public final class DesktopModeHooks {
 
     private static Integer firstInt(Object[] args) {
         if (args == null) return null;
-        for (Object a : args) if (a instanceof Integer) return (Integer) a;
+        for (Object a : args) {
+            if (a instanceof Integer) return (Integer) a;
+            if (a instanceof android.view.Display) return ((android.view.Display) a).getDisplayId();
+        }
         return null;
     }
 

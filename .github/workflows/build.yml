@@ -1,0 +1,92 @@
+name: Build APK
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # per creare la release quando si pubblica un tag
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # Firma di release solo se i secret ci sono (KEYSTORE_BASE64, KEYSTORE_PASSWORD,
+      # KEY_ALIAS, KEY_PASSWORD); senza, si produce solo l'APK di debug.
+      - name: Keystore
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > hyperdesktop-release.jks
+            printf 'storeFile=hyperdesktop-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > keystore.properties
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build debug
+        run: gradle --no-daemon assembleDebug
+
+      - name: Build release
+        if: steps.keystore.outputs.release == 'true'
+        run: gradle --no-daemon assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HyperDesktopUnlock-${{ github.sha }}
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
+      # Pubblicazione, con l'APK firmato allegato, da un tag vX.Y.Z oppure da un branch
+      # release/vX.Y.Z (il tag lo crea il workflow). vX.Y.Z-qualcosa -> pre-release.
+      # Il tag deve corrispondere a versionName (senza la parte dopo il trattino).
+      # Note: release-notes/<tag>.md, altrimenti il messaggio del tag annotato o del commit.
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+          RELEASE_BUILT: ${{ steps.keystore.outputs.release }}
+        run: |
+          [ "$RELEASE_BUILT" = "true" ] || { echo "Senza i secret del keystore non si pubblica"; exit 1; }
+          tag="${REF_NAME#release/}"
+          version="${tag#v}"; version="${version%%-*}"
+          grep -q "versionName '$version'" app/build.gradle \
+            || { echo "Il tag $tag non corrisponde a versionName in app/build.gradle"; exit 1; }
+          apk="HyperDesktopUnlock-$tag.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          if [ -f "release-notes/$tag.md" ]; then
+            notes="$(cat "release-notes/$tag.md")"
+          else
+            notes="$(git for-each-ref "refs/tags/$tag" --format='%(contents)')"
+            [ -n "$notes" ] || notes="$(git log -1 --format=%B)"
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --clobber
+          else
+            pre=""; case "$tag" in *-*) pre="--prerelease";; esac
+            gh release create "$tag" "$apk" --target "$GITHUB_SHA" \
+              --title "HyperDesktop Unlock $tag" --notes "$notes" $pre
+          fi
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f hyperdesktop-release.jks keystore.properties
