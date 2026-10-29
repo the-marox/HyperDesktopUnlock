@@ -114,6 +114,8 @@ public class SettingsActivity extends Activity {
                Prefs.K_TOUCHPAD, Prefs.D_TOUCHPAD, true);
         sliderField(R.string.touchpad_sens_title, R.string.touchpad_sens_summary, Prefs.K_TOUCHPAD_SENS,
                 Prefs.SENS_MIN, Prefs.SENS_MAX, Prefs.SENS_DEFAULT);
+        toggle(R.string.touchpad_back_title, R.string.touchpad_back_summary,
+               Prefs.K_TOUCHPAD_BACK, Prefs.D_TOUCHPAD_BACK, true);
         toggle(R.string.phone_keyboard_title, R.string.phone_keyboard_summary,
                Prefs.K_PHONE_KEYBOARD, Prefs.D_PHONE_KEYBOARD, true);
         note(getString(R.string.tiles_hint));

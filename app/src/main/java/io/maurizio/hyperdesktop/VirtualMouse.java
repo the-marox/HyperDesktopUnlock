@@ -51,7 +51,11 @@ final class VirtualMouse {
     static final String KEYS_NAME = "HyperDesktop Keys";
     static final String KEYS_PHYS = "hyperdesktop/keys0";
 
-    static final int LEFT = 1, RIGHT = 2;
+    /**
+     * BACK e' il 4o pulsante (BTN_SIDE per Linux): Android lo legge come il tasto
+     * "indietro" dei mouse e manda KEYCODE_BACK al display del puntatore, il monitor.
+     */
+    static final int LEFT = 1, RIGHT = 2, BACK = 8;
 
     private static final int   UHID_DESTROY = 1;
     private static final int   UHID_CREATE2 = 11;
@@ -69,15 +73,15 @@ final class VirtualMouse {
         (byte) 0xA1, 0x00,       //   Collection (Physical)
         0x05, 0x09,              //     Usage Page (Buttons)
         0x19, 0x01,              //     Usage Minimum (1)
-        0x29, 0x03,              //     Usage Maximum (3)
+        0x29, 0x04,              //     Usage Maximum (4)
         0x15, 0x00,              //     Logical Minimum (0)
         0x25, 0x01,              //     Logical Maximum (1)
-        (byte) 0x95, 0x03,       //     Report Count (3)
+        (byte) 0x95, 0x04,       //     Report Count (4)
         0x75, 0x01,              //     Report Size (1)
-        (byte) 0x81, 0x02,       //     Input (Data, Variable, Absolute): 3 pulsanti
+        (byte) 0x81, 0x02,       //     Input (Data, Variable, Absolute): 4 pulsanti (il 4o e' "indietro")
         (byte) 0x95, 0x01,       //     Report Count (1)
-        0x75, 0x05,              //     Report Size (5)
-        (byte) 0x81, 0x01,       //     Input (Constant): 5 bit di riempimento
+        0x75, 0x04,              //     Report Size (4)
+        (byte) 0x81, 0x01,       //     Input (Constant): 4 bit di riempimento
         0x05, 0x01,              //     Usage Page (Generic Desktop)
         0x09, 0x30,              //     Usage (X)
         0x09, 0x31,              //     Usage (Y)

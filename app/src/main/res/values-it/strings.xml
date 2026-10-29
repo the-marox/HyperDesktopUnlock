@@ -60,6 +60,8 @@
     <string name="updates_available">Aggiornamento disponibile: %1$s — tocca per aprire le Release.</string>
     <string name="updates_error">Impossibile controllare gli aggiornamenti — tocca per aprire le Release.</string>
 
+    <string name="touchpad_back_title">Gesto indietro sul touchpad</string>
+    <string name="touchpad_back_summary">Scorri dal bordo sinistro o destro del telefono verso il centro per tornare indietro sul monitor, come sul telefono. Disattivalo se ti intralcia quando muovi il puntatore partendo dai bordi.</string>
     <string name="phone_keyboard_title">Tastiera sul telefono</string>
     <string name="phone_keyboard_summary">Con il touchpad attivo, toccando un campo di testo sul monitor la tastiera a schermo compare sul telefono, sotto il touchpad. Con una tastiera fisica collegata Android non la mostra.</string>
     <string name="tiles_hint">Impostazioni rapide: modificando i riquadri nel pannello notifiche puoi aggiungere \"Monitor\" (Computer ↔ Mirroring) e \"Touchpad\".</string>

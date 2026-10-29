@@ -50,6 +50,7 @@ import de.robv.android.xposed.XposedHelpers;
  *   due dita                   -> scorrimento (naturale, come sul telefono)
  *   due dita che si allargano  -> zoom (Ctrl+rotella, nelle app che lo supportano)
  *   tocco con due dita         -> clic destro
+ *   dal bordo sinistro o destro verso il centro -> indietro (opzione, come sul telefono)
  *   tre dita                   -> telefono di nuovo normale
  *
  * Tastiera sul telefono (opzione): finche' il touchpad e' attivo, ExternalDisplayGate
@@ -74,6 +75,8 @@ final class Touchpad {
     private static final float SCROLL_STEP   = 40f;   // px di dita per uno scatto di rotella
     private static final float PINCH_SLOP    = 40f;   // px: la distanza tra le dita cambia di piu' = pizzico
     private static final float PINCH_STEP    = 60f;   // px di variazione della distanza per uno scatto di zoom
+    private static final float EDGE_DP       = 24f;   // dp: un dito che parte entro questa distanza dal bordo puo' fare "indietro"
+    private static final float BACK_FRACTION = 0.15f; // frazione della larghezza da percorrere verso il centro per "indietro"
     private static final long  HINT_MS       = 15000;
     private static final int   LOG_GESTURES  = 6;     // diagnostica: riepilogo dei primi gesti di ogni sessione
     private static final long  CHECK_MS      = 1200;
@@ -115,6 +118,10 @@ final class Touchpad {
     static volatile boolean softKeyboardWanted = true;
     private static volatile boolean lastSoftLogged = true;
     private static float gain = GAIN_PER_STEP * Prefs.SENS_DEFAULT;
+    private static volatile boolean edgeBack = Prefs.D_TOUCHPAD_BACK;
+    /** Display del telefono: larghezza (con la rotazione attuale) per riconoscere i bordi. */
+    private static volatile Display phoneDisplay;
+    private static float edgePx = 72f;
 
     // ------------------------------------------------------------------
     static boolean isShown() { return root != null; }
@@ -131,6 +138,8 @@ final class Touchpad {
         VirtualMouse m = VirtualMouse.open(sys, ext);
         if (m == null) return false;
         reloadSettings();
+        phoneDisplay = phone;
+        try { edgePx = EDGE_DP * sys.getResources().getDisplayMetrics().density; } catch (Throwable ignored) {}
 
         // TYPE_SYSTEM_ERROR sta sopra barra di stato, barra di navigazione e pannello
         // notifiche (serve il permesso INTERNAL_SYSTEM_WINDOW, che system_server ha).
@@ -209,6 +218,7 @@ final class Touchpad {
     static void reloadSettings() {
         gain = GAIN_PER_STEP * Prefs.touchpadSensitivity();
         keyboardOnPhone = Prefs.phoneKeyboard();
+        edgeBack = Prefs.touchpadBack();
     }
 
     /** Toglie lo schermo nero e il mouse virtuale (rilascia un eventuale trascinamento). */
@@ -482,14 +492,16 @@ final class Touchpad {
                  + "Muovi: un dito  ·  Clic: tocco\n"
                  + "Scorri: due dita  ·  Clic destro: tocco con due dita\n"
                  + "Zoom: allarga o stringi due dita\n"
-                 + "Trascina: tocca, poi tocca e muovi\n\n"
+                 + "Trascina: tocca, poi tocca e muovi\n"
+                 + "Indietro: scorri dal bordo verso il centro\n\n"
                  + "Telefono normale: tre dita o Win+P";
         }
         return "Touchpad\n\n"
              + "Move: one finger  ·  Click: tap\n"
              + "Scroll: two fingers  ·  Right click: two-finger tap\n"
              + "Zoom: spread or pinch two fingers\n"
-             + "Drag: tap, then touch and move\n\n"
+             + "Drag: tap, then touch and move\n"
+             + "Back: swipe in from the edge\n\n"
              + "Phone back: three fingers or Win+P";
     }
 
@@ -513,6 +525,14 @@ final class Touchpad {
     private static boolean twoDecided, pinching, wasPinch;
     private static float   twoStartDist, lastDist, accZ;
     private static int     zoomSteps;   // scatti di zoom gia' mandati in questo pizzico
+    /**
+     * Gesto "indietro": il dito e' partito dal bordo sinistro (+1) o destro (-1).
+     * Finche' non e' chiaro se e' un "indietro" il puntatore resta fermo; se il dito
+     * va in un'altra direzione si torna al movimento normale, senza perdere strada.
+     */
+    private static int     edgeDir;
+    private static boolean wasBack;
+    private static final android.graphics.Point screenSize = new android.graphics.Point();
 
     // diagnostica del gesto in corso
     private static int     gestures, gFrames, gSent, gPalm0;
@@ -606,12 +626,13 @@ final class Touchpad {
             mode = POINT;
             primaryId = ids[0];
             downX = lastX = xs[0]; downY = lastY = ys[0];
-            downTime = t; moved = false; dragging = false; wasPinch = false;
+            downTime = t; moved = false; dragging = false; wasPinch = false; wasBack = false;
             accX = accY = 0;
             gFrames = 0; gSent = 0; gDist = 0;
             RawTouch r = raw;
             gPalm0 = r != null ? r.palmReports : 0;
             dragArmed = lastTapTime != 0 && t - lastTapTime <= DOUBLE_TAP_MS;
+            edgeDir = dragArmed || !edgeBack ? 0 : edgeOf(xs[0]);
         }
         if (n > 0) gFrames++;
 
@@ -622,6 +643,7 @@ final class Touchpad {
             PhoneScreen.restoreFromTouchpad();
         } else if (n == 2 && mode == POINT && !dragging) {   // due dita: scorrimento o pizzico
             mode = SCROLL;
+            edgeDir = 0;
             twoA = ids[0]; twoB = ids[1];
             twoDownTime = t; twoMoved = false;
             twoStartX = lastX = (xs[0] + xs[1]) / 2f;
@@ -643,6 +665,7 @@ final class Touchpad {
                 int i = indexOf(ids, n, primaryId);
                 if (i >= 0) {
                     float x = xs[i], y = ys[i];
+                    if (edgeDir != 0 && edgeSwipe(m, x, y)) { prevN = n; return; }
                     float dx = x - lastX, dy = y - lastY;
                     lastX = x; lastY = y;
                     if (!moved && Math.hypot(x - downX, y - downY) > TAP_SLOP) {
@@ -659,7 +682,7 @@ final class Touchpad {
 
         if (n == 0 && prevN > 0) {                    // tutte le dita sollevate: fine del gesto
             endPinch(m);
-            logGesture(wasPinch ? "zoom (pizzico)" : dragging ? "trascinamento"
+            logGesture(wasBack ? "indietro (dal bordo)" : wasPinch ? "zoom (pizzico)" : dragging ? "trascinamento"
                     : mode == POINT ? (moved ? "movimento" : "tocco")
                     : mode == DONE ? "due/tre dita" : "altro", t);
             if (dragging) {
@@ -672,9 +695,48 @@ final class Touchpad {
                 lastTapTime = 0;
             }
             dragging = false;
+            edgeDir = 0;
             mode = IDLE;
         }
         prevN = n;
+    }
+
+    /** Bordo da cui parte il dito: +1 sinistro, -1 destro, 0 nessuno. */
+    private static int edgeOf(float x) {
+        Display d = phoneDisplay;
+        if (d == null) return 0;
+        try { d.getRealSize(screenSize); } catch (Throwable t) { return 0; }
+        int w = screenSize.x;
+        if (w <= 0) return 0;
+        if (x <= edgePx) return 1;
+        if (x >= w - edgePx) return -1;
+        return 0;
+    }
+
+    /**
+     * Dito partito dal bordo (un solo dito, modo POINT). true = movimento gestito qui
+     * (puntatore fermo o "indietro" mandato); false = non e' un "indietro", da qui
+     * in poi il dito muove il puntatore, compreso lo spostamento fatto finora
+     * (lastX/lastY sono rimasti al punto di partenza).
+     */
+    private static boolean edgeSwipe(VirtualMouse m, float x, float y) {
+        float in = (x - downX) * edgeDir;                 // verso il centro dello schermo
+        float side = Math.abs(y - downY);
+        if (in > screenSize.x * BACK_FRACTION && in > 2 * side) {
+            m.click(VirtualMouse.BACK);
+            wasBack = true;
+            moved = true;                                 // niente clic al sollevamento
+            edgeDir = 0;
+            mode = DONE;
+            return true;
+        }
+        if (Math.hypot(x - downX, y - downY) <= TAP_SLOP) return true;   // ancora un possibile tocco
+        if (in < 0 || side > in) {                        // verso il bordo o in verticale: puntatore
+            edgeDir = 0;
+            return false;
+        }
+        moved = true;                                     // verso il centro ma corto: niente clic
+        return true;
     }
 
     /**
@@ -754,6 +816,7 @@ final class Touchpad {
         endPinch(m);
         if (dragging && m != null) m.release(VirtualMouse.LEFT);
         dragging = false;
+        edgeDir = 0;
         mode = IDLE;
         prevN = 0;
         lastTapTime = 0;
