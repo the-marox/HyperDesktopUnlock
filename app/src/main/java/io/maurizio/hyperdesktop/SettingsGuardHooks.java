@@ -75,6 +75,44 @@ public final class SettingsGuardHooks {
         return n;
     }
 
+    /**
+     * SystemUI: solo traccia, nessun blocco. Registra ogni scrittura di
+     * mirror_built_in_display, cosi' il report dice se la scelta Computer e'
+     * arrivata a scrivere 0 (e chi l'ha scritta) o se SystemUI e' ricaduto nel
+     * mirroring da solo.
+     */
+    public static void traceSystemUi(LoadPackageParam lp) {
+        Class<?> cls = XposedHelpers.findClassIfExists("android.provider.Settings$Secure", lp.classLoader);
+        if (cls == null) return;
+        for (Method m : cls.getDeclaredMethods()) {
+            String nm = m.getName();
+            if (!(nm.startsWith("putString") || nm.startsWith("putInt"))) continue;
+            try {
+                XposedBridge.hookMethod(m, new XC_MethodHook() {
+                    @Override protected void beforeHookedMethod(MethodHookParam p) {
+                        int ki = indexOfKey(p.args);
+                        if (ki < 0 || !KEY_MIRROR.equals(p.args[ki])) return;
+                        String val = (ki + 1 < p.args.length) ? String.valueOf(p.args[ki + 1]) : null;
+                        XLog.i("[guard] SystemUI scrive " + KEY_MIRROR + " = " + val + " da " + caller());
+                    }
+                });
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    /** Primo frame dello stack fuori da framework e modulo: chi ha chiesto la scrittura. */
+    private static String caller() {
+        for (StackTraceElement e : new Throwable().getStackTrace()) {
+            String c = e.getClassName();
+            if (c.startsWith("android.provider.") || c.startsWith("io.maurizio.")
+                    || c.startsWith("de.robv.") || c.startsWith("java.") || c.startsWith("LSP")
+                    || c.startsWith("org.lsposed.") || c.startsWith("J.")
+                    || c.startsWith("com.android.systemui.util.settings.")) continue;
+            return c.substring(c.lastIndexOf('.') + 1) + "." + e.getMethodName();
+        }
+        return "?";
+    }
+
     private static int indexOfKey(Object[] args) {
         if (args == null) return -1;
         for (int i = 0; i < args.length; i++) {
