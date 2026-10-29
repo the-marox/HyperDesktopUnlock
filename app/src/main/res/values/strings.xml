@@ -71,6 +71,8 @@
     <string name="updates_available">Update available: %1$s — tap to open Releases.</string>
     <string name="updates_error">Could not check for updates — tap to open Releases.</string>
 
+    <string name="touchpad_back_title">Back gesture on the touchpad</string>
+    <string name="touchpad_back_summary">Swipe from the left or right edge of the phone towards the centre to go back on the monitor, like on the phone. Turn it off if it gets in the way when you move the pointer from the edges.</string>
     <string name="phone_keyboard_title">Keyboard on the phone</string>
     <string name="phone_keyboard_summary">With the touchpad on, tapping a text field on the monitor shows the on-screen keyboard on the phone, below the touchpad. With a physical keyboard connected Android doesn\'t show it.</string>
     <string name="tiles_hint">Quick Settings: edit the tiles in the notification shade to add \"Monitor\" (Computer ↔ Mirroring) and \"Touchpad\".</string>

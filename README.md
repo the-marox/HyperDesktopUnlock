@@ -140,6 +140,7 @@ update renamed something) — please include that line in bug reports.
 | Use the phone as a touchpad | off | The phone screen stays black instead of off and works as a touchpad for the monitor |
 | Touchpad sensitivity | 6 of 20 | Slider; higher = the pointer travels further. The system pointer speed applies on top |
 | Keyboard on the phone | on | With the touchpad on and no physical keyboard, the on-screen keyboard opens on the phone, below the touchpad |
+| Back gesture on the touchpad | on | Swiping in from the left or right edge of the phone goes back on the monitor |
 | Keep the monitor on | off | Ignores the screen timeout in desktop mode; the power button still works |
 | Monitor density (dpi) | not set | 100–800, or 0 for the monitor's default. Never touched until you set it; clear the field and Apply to stop changing it |
 | Monitor resolution | not set | Picked from the sizes that fit the connected monitor, or Native. Lower = bigger UI, lighter on the GPU |
@@ -162,6 +163,7 @@ Keyboard section shows a warning with a **Turn it off** button (see
 | Two fingers | Scroll (natural direction, like on the phone) |
 | Spread or pinch two fingers | Zoom (sent as Ctrl+wheel: works in apps that zoom with Ctrl+wheel, such as browsers) |
 | Two-finger tap | Right click |
+| Swipe in from the left or right edge | Back on the monitor (like the phone's back gesture; sent as the mouse "back" button, can be turned off) |
 | Three fingers | Phone back to normal (so does Win+P) |
 
 Typing: tap a text field on the monitor; if no physical keyboard is connected,
