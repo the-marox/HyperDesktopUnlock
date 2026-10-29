@@ -3,8 +3,12 @@ name: Build APK
 on:
   push:
     branches: ['**']
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write   # per creare la release quando si pubblica un tag
 
 jobs:
   build:
@@ -50,6 +54,27 @@ jobs:
           name: HyperDesktopUnlock-${{ github.sha }}
           path: app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+
+      # Tag vX.Y.Z -> release, vX.Y.Z-qualcosa -> pre-release, con l'APK firmato allegato.
+      # Il tag deve corrispondere a versionName (senza la parte dopo il trattino).
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          RELEASE_BUILT: ${{ steps.keystore.outputs.release }}
+        run: |
+          [ "$RELEASE_BUILT" = "true" ] || { echo "Senza i secret del keystore non si pubblica"; exit 1; }
+          version="${TAG#v}"; version="${version%%-*}"
+          grep -q "versionName '$version'" app/build.gradle \
+            || { echo "Il tag $TAG non corrisponde a versionName in app/build.gradle"; exit 1; }
+          apk="HyperDesktopUnlock-$TAG.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          pre=""; case "$TAG" in *-*) pre="--prerelease";; esac
+          # Note: il messaggio del tag annotato, altrimenti quello del commit
+          notes="$(git for-each-ref "refs/tags/$TAG" --format='%(contents)')"
+          [ -n "$notes" ] || notes="$(git log -1 --format=%B)"
+          gh release create "$TAG" "$apk" --title "HyperDesktop Unlock $TAG" --notes "$notes" $pre
 
       - name: Remove keystore
         if: always()
