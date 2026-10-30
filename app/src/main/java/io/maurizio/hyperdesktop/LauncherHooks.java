@@ -8,6 +8,7 @@ package io.maurizio.hyperdesktop;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.ActivityOptions;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -18,6 +19,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.os.UserHandle;
+import android.provider.Settings;
 import android.view.Display;
 import android.view.accessibility.AccessibilityManager;
 
@@ -102,6 +104,11 @@ public final class LauncherHooks {
         h.post(new Runnable() {
             @Override public void run() {
                 try {
+                    Context app = (Context) XposedHelpers.callStaticMethod(
+                        XposedHelpers.findClass("android.app.ActivityThread", null), "currentApplication");
+                    if (app != null) ensureDesktopSetting(app);
+                } catch (Throwable t) { XLog.e("[launcher] scrittura di mirror_built_in_display = 0 fallita", t); }
+                try {
                     if (!Prefs.autoLaunch()) { XLog.i("[launcher] avvio del dock disattivato nelle impostazioni"); return; }
                     Context ctx = (Context) XposedHelpers.callStaticMethod(
                         XposedHelpers.findClass("android.app.ActivityThread", null), "currentApplication");
@@ -111,6 +118,19 @@ public final class LauncherHooks {
                 } catch (Throwable t) { XLog.e("[launcher] avvio del dock fallito", t); }
             }
         });
+    }
+
+    /**
+     * Scelta Computer: su alcune build (Xiaomi 14 houji, OS4.0.27, issue #2) SystemUI
+     * applica la scelta ma non scrive mai mirror_built_in_display = 0 (lo Xiaomi 15 lo fa
+     * da se'), e il monitor resta in mirroring. Lo scriviamo noi, come fa il riquadro
+     * "Monitor"; la guardia in system_server impedisce poi che torni a 1.
+     */
+    private static void ensureDesktopSetting(Context ctx) {
+        ContentResolver cr = ctx.getContentResolver();
+        if (Settings.Secure.getInt(cr, SettingsGuardHooks.KEY_MIRROR, 0) != 1) return;
+        Settings.Secure.putInt(cr, SettingsGuardHooks.KEY_MIRROR, 0);
+        XLog.i("[launcher] SystemUI non ha scritto " + SettingsGuardHooks.KEY_MIRROR + " = 0: lo scrivo io");
     }
 
     /**
