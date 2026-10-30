@@ -80,6 +80,8 @@ public class SettingsActivity extends Activity {
 
     private SharedPreferences prefs;
     private LinearLayout root;
+    private TextView oldWarn;
+    private Button oldButton;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -94,6 +96,7 @@ public class SettingsActivity extends Activity {
         setContentView(scroll);
 
         header(getString(R.string.app_name) + " " + BuildConfig.VERSION_NAME);
+        oldPackageRow();
         if (prefs == null) { note(getString(R.string.status_unavailable)); return; }
         note(getString(Boolean.TRUE.equals(sModuleActive) ? R.string.status_active : R.string.status_inactive));
 
@@ -154,6 +157,45 @@ public class SettingsActivity extends Activity {
 
         section(R.string.section_updates);
         updatesRow();
+    }
+
+    /**
+     * Fino alla 1.12.7 il pacchetto era io.maurizio.hyperdesktop: per Android e' un'altra
+     * app, che resterebbe installata (e attiva in LSPosed) accanto a questa. Avviso, con
+     * un pulsante che apre la sua pagina nelle impostazioni per disinstallarla.
+     */
+    private void oldPackageRow() {
+        oldWarn = note(getString(R.string.old_package_warning));
+        oldButton = new Button(this);
+        oldButton.setAllCaps(false);
+        oldButton.setText(R.string.old_package_button);
+        oldButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                try {
+                    startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:" + Prefs.OLD_PKG)));
+                } catch (Throwable t) {
+                    Toast.makeText(SettingsActivity.this, R.string.old_package_warning, Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+        root.addView(oldButton, matchWidth());
+        updateOldPackageRow();
+    }
+
+    private void updateOldPackageRow() {
+        if (oldWarn == null) return;
+        boolean installed;
+        try { getPackageManager().getPackageInfo(Prefs.OLD_PKG, 0); installed = true; }
+        catch (Throwable t) { installed = false; }
+        int vis = installed ? View.VISIBLE : View.GONE;
+        oldWarn.setVisibility(vis);
+        oldButton.setVisibility(vis);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        updateOldPackageRow();   // di ritorno dalla disinstallazione
     }
 
     // ------------------------------------------------------------------

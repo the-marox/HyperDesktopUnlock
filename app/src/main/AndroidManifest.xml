@@ -4,11 +4,15 @@
     <!-- Solo l'app del modulo (stessa firma) puo' chiedere a system_server di
          riapplicare subito le impostazioni (densita' del monitor, tieni acceso). -->
     <permission
-        android:name="io.maurizio.hyperdesktop.permission.APPLY_SETTINGS"
+        android:name="${applicationId}.permission.APPLY_SETTINGS"
         android:protectionLevel="signature" />
-    <uses-permission android:name="io.maurizio.hyperdesktop.permission.APPLY_SETTINGS" />
+    <uses-permission android:name="${applicationId}.permission.APPLY_SETTINGS" />
     <!-- Solo l'app (SettingsActivity) la usa, per il controllo aggiornamenti su GitHub -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Il pacchetto usato fino alla 1.12.7: l'app avvisa se e' ancora installato -->
+    <queries>
+        <package android:name="io.maurizio.hyperdesktop" />
+    </queries>
 
     <application
         android:allowBackup="false"
@@ -82,7 +86,7 @@
              ottenerlo, il sistema lo supera sempre. -->
         <provider
             android:name=".ShotProvider"
-            android:authorities="io.maurizio.hyperdesktop.shots"
+            android:authorities="${applicationId}.shots"
             android:exported="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     </application>
