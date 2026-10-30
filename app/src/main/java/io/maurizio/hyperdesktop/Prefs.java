@@ -25,14 +25,17 @@ import de.robv.android.xposed.XSharedPreferences;
  */
 final class Prefs {
 
-    static final String PKG  = "io.maurizio.hyperdesktop";
+    /** Pacchetto dell'app del modulo (dalla 1.12.8 io.github.the_marox.hyperdesktop). */
+    static final String PKG  = BuildConfig.APPLICATION_ID;
+    /** Pacchetto usato fino alla 1.12.7: se e' ancora installato l'app avvisa di disinstallarlo. */
+    static final String OLD_PKG = "io.maurizio.hyperdesktop";
     static final String FILE = "settings";
 
     /** Broadcast con cui l'app chiede a system_server di riapplicare subito le impostazioni. */
-    static final String ACTION_APPLY     = "io.maurizio.hyperdesktop.APPLY_SETTINGS";
-    static final String PERMISSION_APPLY = "io.maurizio.hyperdesktop.permission.APPLY_SETTINGS";
+    static final String ACTION_APPLY     = PKG + ".APPLY_SETTINGS";
+    static final String PERMISSION_APPLY = PKG + ".permission.APPLY_SETTINGS";
     /** Comandi e stato (broadcast ordinato) tra l'app e i processi agganciati: vedi ModuleControl. */
-    static final String ACTION_COMMAND   = "io.maurizio.hyperdesktop.COMMAND";
+    static final String ACTION_COMMAND   = PKG + ".COMMAND";
     static final String EXTRA_CMD        = "cmd";
     static final String EXTRA_DIAG       = "diag";
 

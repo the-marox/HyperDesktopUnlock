@@ -100,11 +100,13 @@ update renamed something) — please include that line in bug reports.
 5. Optional: open **HyperDesktop Unlock** from the app drawer (or the module's
    settings in LSPosed) to change the settings.
 
-> **Updating from 1.12.5 or earlier to 1.12.6 or later:** the APK is signed with a
-> new key (SHA-256 `5C:93:A2:69:0B:5D:DC:63:70:25:C2:F0:D1:3E:52:60:5A:FC:9B:63:60:2D:67:58:4A:D0:29:7E:4E:B0:00:8F`),
-> so Android refuses to install it over the old one. Unplug the monitor, uninstall the
-> module once, then install the new APK and repeat steps 2–4. The module's settings
-> start from the defaults again.
+> **Updating from 1.12.7 or earlier to 1.12.8 or later:** since 1.12.8 the package name is
+> `io.github.the_marox.hyperdesktop` (it was `io.maurizio.hyperdesktop`), so Android treats it as a
+> different app; 1.12.6 and later are also signed with a new key (SHA-256
+> `5C:93:A2:69:0B:5D:DC:63:70:25:C2:F0:D1:3E:52:60:5A:FC:9B:63:60:2D:67:58:4A:D0:29:7E:4E:B0:00:8F`).
+> Unplug the monitor, uninstall the old module, then install the new APK and repeat steps 2–4.
+> The module's settings start from the defaults again. If the old version is still installed,
+> the new settings app shows a warning with a button to uninstall it.
 
 ## Use
 
@@ -233,7 +235,7 @@ Both need the phone unlocked.
 - Otherwise, with the phone plugged into a PC while booting:
   ```
   adb wait-for-device
-  adb shell pm uninstall io.maurizio.hyperdesktop
+  adb shell pm uninstall io.github.the_marox.hyperdesktop
   ```
   Uninstalling removes the module; nothing else is modified (no system
   partition changes). The persistent side effects are

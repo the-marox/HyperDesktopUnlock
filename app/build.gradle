@@ -15,11 +15,11 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'io.maurizio.hyperdesktop'
+        applicationId 'io.github.the_marox.hyperdesktop'
         minSdk 31
         targetSdk 35
-        versionCode 237
-        versionName '1.12.7'
+        versionCode 238
+        versionName '1.12.8'
     }
 
     signingConfigs {

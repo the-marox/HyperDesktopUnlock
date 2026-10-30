@@ -25,7 +25,7 @@ import java.io.OutputStream;
  *
  * Gira nel processo dell'APP del modulo (non dentro un hook): niente API Xposed
  * qui. system_server cattura il monitor, apre
- *   content://io.maurizio.hyperdesktop.shots/<nome>.png  in scrittura
+ *   content://<pacchetto>.shots/<nome>.png  in scrittura
  * e ci scrive il PNG; noi lo copiamo in MediaStore (Pictures/Screenshots).
  * Serve perche' MediaProvider rifiuta di aprire file in scrittura al processo
  * di sistema, mentre un'app normale puo' contribuire immagini senza permessi.

@@ -247,7 +247,7 @@ final class DesktopShortcuts {
         toast(ctx, displayId, "Screenshot saved to Pictures/Screenshots");
     }
 
-    private static final String SHOT_AUTHORITY = "io.maurizio.hyperdesktop.shots";
+    private static final String SHOT_AUTHORITY = Prefs.PKG + ".shots";
 
     private static void toast(Context ctx, int displayId, String msg) {
         try {
