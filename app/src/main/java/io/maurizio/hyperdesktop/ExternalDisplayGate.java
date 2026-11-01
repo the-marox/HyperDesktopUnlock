@@ -46,6 +46,10 @@ public final class ExternalDisplayGate {
                     present = true;
                     externalId = id;
                     XLog.i("[gate] display esterno COLLEGATO (id " + id + ")");
+                    if (!ModuleState.enabled()) {   // si segue solo il monitor: niente dock, telefono, sessione
+                        XLog.i("[gate] modulo spento dall'interruttore: nessuna azione");
+                        return;
+                    }
                     DockAccessibility.onExternalAdded();
                     PhoneScreen.onExternalAdded();
                     DesktopSession.onExternalAdded(id);

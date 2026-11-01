@@ -93,6 +93,7 @@ final class DesktopSession {
                         setKeepAwake(false);              // e un wakelock rimasto non deve restare
                         return;
                     }
+                    if (!ModuleState.refresh()) return;   // interruttore spento: non si tocca il monitor
                     XLog.i("[session] impostazioni aggiornate dall'app");
                     setKeepAwake(Prefs.keepAwake());
                     PhoneScreen.onSettingsChanged();   // touchpad acceso/spento mentre il telefono e' nero

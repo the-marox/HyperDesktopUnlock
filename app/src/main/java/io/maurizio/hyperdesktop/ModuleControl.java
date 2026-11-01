@@ -35,6 +35,10 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
  *   report            -> come status con diag=true, piu' la disposizione del monitor
  *                        (MonitorLayout): solo quando l'utente crea il report
  *   mirror / desktop  -> monitor in mirroring / di nuovo in desktop (riquadro "Monitor")
+ *   enable / disable  -> interruttore generale (ModuleState) appena cambiato nell'app:
+ *                        spento = monitor in mirroring, telefono normale, dock e
+ *                        "tieni acceso" rilasciati, e gli hook non intervengono piu'
+ *   (ogni risposta)   -> anche enabled=1/0
  *   touchpad_on/_off  -> telefono come touchpad adesso / telefono normale (riquadro "Touchpad")
  *   show_ime_off      -> spegne "mostra tastiera virtuale" (avviso nelle impostazioni):
  *                        acceso, blocca le lettere della tastiera fisica nelle app sul monitor
@@ -88,10 +92,16 @@ final class ModuleControl {
                 String c0 = i.getStringExtra(Prefs.EXTRA_CMD);
                 if (c0 != null) cmd = c0;
                 Prefs.refresh();
+                boolean on = ModuleState.refresh();
                 switch (cmd) {
+                    case "enable":       break;   // gia' riletto: vale dal prossimo uso degli hook
+                    case "disable":      if (!on) disable(c); break;
                     case "mirror":       setMirror(c, true);  break;
-                    case "desktop":      setMirror(c, false); break;
-                    case "touchpad_on":  PhoneScreen.touchpadNow(true);  break;
+                    case "desktop":
+                        if (on) setMirror(c, false);
+                        else XLog.i("[control] desktop ignorato: modulo spento dall'interruttore");
+                        break;
+                    case "touchpad_on":  if (on) PhoneScreen.touchpadNow(true);  break;
                     case "touchpad_off": PhoneScreen.touchpadNow(false); break;
                     case "show_ime_off": imeOff = showImeOff(c); break;
                     default: break;
@@ -100,6 +110,7 @@ final class ModuleControl {
                     int monitor = ExternalDisplayGate.present ? ExternalDisplayGate.externalId : -1;
                     StringBuilder sb = new StringBuilder();
                     sb.append("version=").append(BuildConfig.VERSION_NAME).append('\n');
+                    sb.append("enabled=").append(on ? 1 : 0).append('\n');
                     sb.append("monitor=").append(monitor).append('\n');
                     sb.append("mirror=").append(mirrorSetting(c)).append('\n');
                     sb.append("phone=").append(PhoneScreen.state()).append('\n');
@@ -140,6 +151,19 @@ final class ModuleControl {
         } else {
             resumeDesktop(c, 0);
         }
+    }
+
+    /**
+     * Interruttore generale spento: si torna al comportamento originale di HyperOS.
+     * Con il monitor in desktop si passa al mirroring (setMirror rimette anche il
+     * telefono e toglie il dock); senza monitor resta solo da rilasciare "tieni acceso".
+     * Densita'/risoluzione gia' applicate restano fino allo scollegamento del monitor.
+     */
+    private static void disable(Context c) {
+        XLog.i("[control] modulo SPENTO dall'interruttore");
+        if (ExternalDisplayGate.present) setMirror(c, true);   // + telefono normale, dock tolto
+        PhoneScreen.onMirroring();          // telefono normale anche se era gia' in mirroring
+        DesktopSession.onExternalRemoved(); // rilascia "tieni acceso"
     }
 
     /** Di ritorno al desktop: dock e sessione come dopo la scelta "Computer". */

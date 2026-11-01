@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import de.robv.android.xposed.XC_MethodReplacement;
+import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
@@ -41,13 +41,14 @@ public final class MirrorPolicyHooks {
             final String name = m.getName();
             if (!NEUTER.contains(name)) continue;
             try {
-                XposedBridge.hookMethod(m, new XC_MethodReplacement() {
-                    @Override protected Object replaceHookedMethod(MethodHookParam p) {
+                XposedBridge.hookMethod(m, new XC_MethodHook() {
+                    @Override protected void beforeHookedMethod(MethodHookParam p) {
+                        if (!ModuleState.enabled()) return;   // interruttore spento: politica originale
                         XLog.i("[policy] neutralizzato " + name + "()");
                         Class<?> rt = ((Method) p.method).getReturnType();
-                        if (rt == boolean.class) return Boolean.FALSE;
-                        if (rt == int.class)     return 0;
-                        return null;
+                        if (rt == boolean.class)  p.setResult(Boolean.FALSE);
+                        else if (rt == int.class) p.setResult(0);
+                        else                      p.setResult(null);
                     }
                 });
                 done.add(name);

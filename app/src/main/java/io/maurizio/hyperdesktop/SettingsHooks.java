@@ -7,7 +7,7 @@ package io.maurizio.hyperdesktop;
 
 import java.lang.reflect.Method;
 
-import de.robv.android.xposed.XC_MethodReplacement;
+import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
@@ -49,7 +49,11 @@ public final class SettingsHooks {
                     && m.getParameterTypes().length == 0
                     && m.getReturnType() == int.class) {
                 try {
-                    XposedBridge.hookMethod(m, XC_MethodReplacement.returnConstant(UNSUPPORTED_ON_DEVICE));
+                    XposedBridge.hookMethod(m, new XC_MethodHook() {
+                        @Override protected void beforeHookedMethod(MethodHookParam p) {
+                            if (ModuleState.enabled()) p.setResult(UNSUPPORTED_ON_DEVICE);
+                        }
+                    });
                     hooked = true;
                 } catch (Throwable t) {
                     XLog.e("[settings] hook topology fallito", t);

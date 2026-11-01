@@ -34,6 +34,7 @@ public class MonitorTile extends TileService {
         Map<String, String> s = last;
         Tile t = getQsTile();
         if (s == null || t == null) { onStartListening(); return; }
+        if ("0".equals(s.get("enabled"))) { onStartListening(); return; }   // interruttore spento
         boolean mirror = "1".equals(s.get("mirror"));
         boolean monitor = !"-1".equals(s.get("monitor"));
         if (!mirror && !monitor) { onStartListening(); return; }   // nessun monitor
@@ -50,6 +51,12 @@ public class MonitorTile extends TileService {
         if (s == null) {
             t.setState(Tile.STATE_INACTIVE);
             t.setSubtitle(getString(R.string.tile_not_active));
+            t.updateTile();
+            return;
+        }
+        if ("0".equals(s.get("enabled"))) {
+            t.setState(Tile.STATE_UNAVAILABLE);
+            t.setSubtitle(getString(R.string.tile_disabled));
             t.updateTile();
             return;
         }

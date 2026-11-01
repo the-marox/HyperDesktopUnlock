@@ -18,8 +18,8 @@ android {
         applicationId 'io.github.the_marox.hyperdesktop'
         minSdk 31
         targetSdk 35
-        versionCode 238
-        versionName '1.12.8'
+        versionCode 239
+        versionName '1.12.9'
     }
 
     signingConfigs {

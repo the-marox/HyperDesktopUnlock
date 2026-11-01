@@ -39,6 +39,8 @@ final class Prefs {
     static final String EXTRA_CMD        = "cmd";
     static final String EXTRA_DIAG       = "diag";
 
+    /** Interruttore generale (ModuleState): spento = gli hook non intervengono. */
+    static final String K_ENABLED        = "module_enabled";
     static final String K_LAUNCHER_PKG   = "launcher_pkg";
     static final String K_AUTO_LAUNCH    = "auto_launch";
     static final String K_EXTRA_APPS     = "extra_apps";
@@ -57,6 +59,7 @@ final class Prefs {
     static final String K_KEEP_AWAKE     = "keep_awake";
     static final String K_FIT_STATUS_BAR = "monitor_fit_status_bar";
 
+    static final boolean D_ENABLED       = true;
     static final String  D_LAUNCHER_PKG  = "cu.axel.smartdock";
     static final boolean D_AUTO_LAUNCH   = true;
     static final boolean D_MANAGE_A11Y   = true;

@@ -99,6 +99,7 @@ public class SettingsActivity extends Activity {
         oldPackageRow();
         if (prefs == null) { note(getString(R.string.status_unavailable)); return; }
         note(getString(Boolean.TRUE.equals(sModuleActive) ? R.string.status_active : R.string.status_inactive));
+        masterSwitch();
 
         section(R.string.section_dock);
         toggle(R.string.auto_launch_title, R.string.auto_launch_summary,
@@ -282,6 +283,7 @@ public class SettingsActivity extends Activity {
             }
         }
         if (!missing.isEmpty()) return getString(R.string.diag_missing, android.text.TextUtils.join(", ", missing));
+        if ("0".equals(s.get("enabled"))) return getString(R.string.diag_disabled, loaded);
         return getString(R.string.diag_ok, loaded);
     }
 
@@ -452,6 +454,31 @@ public class SettingsActivity extends Activity {
             } catch (NumberFormatException e) { return null; }
         }
     };
+
+    /**
+     * Interruttore generale (ModuleState): salvato prima del comando, cosi'
+     * system_server lo rilegge gia' aggiornato e, se spento, rimette il mirroring.
+     */
+    private void masterSwitch() {
+        final TextView[] off = new TextView[1];
+        Switch sw = new Switch(this);
+        sw.setText(R.string.master_title);
+        sw.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        boolean on = prefs.getBoolean(Prefs.K_ENABLED, Prefs.D_ENABLED);
+        sw.setChecked(on);
+        sw.setPadding(0, dp(12), 0, dp(2));
+        sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton b, boolean v) {
+                prefs.edit().putBoolean(Prefs.K_ENABLED, v).commit();
+                if (off[0] != null) off[0].setVisibility(v ? View.GONE : View.VISIBLE);
+                ModuleClient.send(SettingsActivity.this, v ? "enable" : "disable", false, null);
+            }
+        });
+        root.addView(sw, matchWidth());
+        small(getString(R.string.master_summary));
+        off[0] = note(getString(R.string.master_off_note));
+        off[0].setVisibility(on ? View.GONE : View.VISIBLE);
+    }
 
     // ------------------------------------------------------------------
     // costruzione della schermata
