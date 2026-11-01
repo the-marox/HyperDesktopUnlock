@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 简体中文。部分译文参考 oldbkroll 的 fork（values-zh-rCN）。 -->
+<resources>
+    <string name="app_name">HyperDesktop Unlock</string>
+    <string name="xposed_desc">在小米 HyperOS 4 / Android 17 上把外接显示器变成独立屏幕（而非镜像）：恢复隐藏的“电脑”按钮，并阻止系统强制镜像。</string>
+
+    <string name="status_active">更改立即生效。只有安装或更新模块后才需要重启。</string>
+    <string name="status_unavailable">⚠ LSPosed 没有提供保存设置的位置。请重启后再打开此页面。</string>
+    <string name="status_inactive">⚠ 模块未在 LSPosed 中启用，这些设置无法传到系统。请在 LSPosed 中启用（作用域：系统框架、系统界面、设置），重启后再打开此页面。</string>
+
+    <string name="master_title">启用模块</string>
+    <string name="master_summary">关闭后：显示器恢复镜像，模块不再修改 HyperOS，无需重启。桌面模式需重新连接显示器或重启后才完全恢复原样。</string>
+    <string name="master_off_note">⚠ 模块已关闭：HyperOS 按原厂方式运行。在上方重新开启，然后重新连接显示器并选择“电脑”。</string>
+    <string name="diag_disabled">模块已在系统中运行（v%1$s），但已被总开关关闭。</string>
+    <string name="tile_disabled">模块已关闭</string>
+    <string name="section_dock">Dock</string>
+    <string name="auto_launch_title">在显示器上启动 Dock</string>
+    <string name="auto_launch_summary">选择“电脑”后，在显示器上打开 Dock 桌面。</string>
+    <string name="launcher_pkg_title">Dock 应用（包名）</string>
+    <string name="launcher_pkg_summary">SmartDock：cu.axel.smartdock · Taskbar：com.farmerbb.taskbar</string>
+    <string name="extra_apps_title">同时在显示器上打开</string>
+    <string name="extra_apps_summary">连接时在 Dock 之后于显示器上启动的应用。包名之间用空格或逗号分隔。</string>
+    <string name="extra_apps_hint">com.android.chrome, org.videolan.vlc</string>
+    <string name="manage_a11y_title">管理 Dock 的无障碍服务</string>
+    <string name="manage_a11y_summary">桌面启动时开启，拔线时关闭，这样 Dock 不会出现在手机上。</string>
+    <string name="block_stock_home_title">不在显示器上打开 HyperOS 自带桌面</string>
+    <string name="block_stock_home_summary">如果更改显示器 DPI 或缩放后手机手势失效，可以试试此项。阻止小米自带的副屏桌面（SecondaryDisplayLauncher）在显示器上启动，已打开时将其关闭；不影响 Dock 和其他应用。没有 Dock 时，显示器在打开应用前只显示壁纸。</string>
+
+    <string name="section_phone">手机</string>
+    <string name="phone_off_title">桌面模式下关闭手机屏幕</string>
+    <string name="phone_off_summary">手机保持唤醒。按两次电源键或 Win+P 可恢复手机屏幕。</string>
+    <string name="touchpad_title">把手机当作触控板</string>
+    <string name="touchpad_summary">桌面模式下手机屏幕关闭时保持黑屏，但仍响应触摸：单指移动显示器上的指针，轻点为单击，双指滚动，双指轻点为右键，轻点后按住移动为拖动。三指或 Win+P 恢复手机。比完全关闭屏幕稍耗电。</string>
+    <string name="touchpad_sens_title">触控板灵敏度：%1$d / %2$d</string>
+    <string name="touchpad_sens_summary">数值越高，同样的手指移动指针走得越远。松开滑块时生效，触控板开启时也一样。系统的指针速度和加速度同样起作用。</string>
+    <string name="keep_awake_title">保持显示器常亮</string>
+    <string name="keep_awake_summary">桌面模式下忽略屏幕超时。如果不用鼠标或键盘时显示器会变暗，请开启此项。电源键仍然有效。</string>
+
+    <string name="section_monitor">显示器</string>
+    <string name="density_title">显示器 DPI</string>
+    <string name="density_summary">数值越高界面越大。4K 显示器通常在 240 到 360 之间合适。0 = 显示器默认值；留空 = 不修改。</string>
+    <string name="density_invalid">请输入 0 或 100 到 800 之间的数值</string>
+    <string name="field_apply">应用</string>
+    <string name="field_saved">已保存。显示器已连接时立即应用，否则在下次连接时应用。</string>
+    <string name="field_cleared">完成——模块不会再修改此项。</string>
+    <string name="resolution_title">显示器分辨率</string>
+    <string name="resolution_summary">逻辑分辨率，例如 2560x1440 或 1920x1080。越低界面越大、GPU 负担越轻。0 = 原生，留空 = 保持不变。</string>
+    <string name="resolution_invalid">请使用 宽x高（例如 1920x1080），或 0</string>
+    <string name="refresh_title">显示器刷新率（Hz）</string>
+    <string name="refresh_summary">仅在显示器在当前分辨率下支持时应用（例如 60）。0 = 原生，留空 = 保持不变。</string>
+    <string name="refresh_invalid">请输入刷新率（例如 60），或 0</string>
+    <string name="choose_leave">保持不变</string>
+    <string name="choose_native">原生</string>
+    <string name="modes_hint">连接显示器后可从其支持的模式中选择。在此之前可以手动输入。</string>
+
+    <string name="section_keyboard">键盘</string>
+    <string name="shortcuts_title">桌面键盘快捷键</string>
+    <string name="switcher_title">Alt+Tab 预览栏</string>
+    <string name="switcher_summary">按住 Alt 查看显示器上打开的应用，松开 Alt 切换。关闭 = 每按一次 Tab 立即切换。</string>
+    <string name="old_package_warning">旧版 HyperDesktop Unlock（io.maurizio.hyperdesktop，至 1.12.7）仍已安装。请卸载它：两者同时在 LSPosed 中启用时，每个 Hook 都会运行两次。然后确认此版本已在 LSPosed 中启用（系统框架、系统界面、设置）并重启。</string>
+    <string name="old_package_button">卸载旧版本</string>
+    <string name="ime_warning">注意：使用实体键盘时“显示屏幕键盘”已开启。在显示器上的部分应用中，输入的字母要在锁定并解锁手机后才会出现（删除键和退格键仍可用）。</string>
+    <string name="ime_warning_button">关闭它</string>
+    <string name="ime_warning_done">已关闭“显示屏幕键盘”</string>
+    <string name="ime_warning_failed">无法更改：请在实体键盘设置中关闭“显示屏幕键盘”</string>
+    <string name="fit_status_bar_title">让应用避开显示器状态栏（实验性）</string>
+    <string name="fit_status_bar_summary">部分应用（例如浏览器的标签栏）会画到显示器状态栏下面，顶部被状态栏遮住。开启后显示器上的应用窗口从状态栏下方开始；全屏视频仍为全屏。对开启后打开的应用生效。</string>
+    <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — 在显示器上切换应用\nPrint Screen · Win+Shift+S — 显示器截图\nWin+Shift+方向键 — 在显示器和手机之间移动应用\nAlt+F4 — 关闭显示器上的应用\nWin+D — 显示 Dock 桌面\nWin+Backspace — 返回\nWin+1…9 — 聚焦第 N 个应用\nWin+P — 手机屏幕开/关</string>
+
+    <string name="section_updates">更新</string>
+    <string name="updates_checking">正在检查更新…</string>
+    <string name="updates_latest">已是最新版本（v%1$s）。</string>
+    <string name="updates_available">有可用更新：%1$s——点按打开 Releases。</string>
+    <string name="updates_error">无法检查更新——点按打开 Releases。</string>
+
+    <string name="touchpad_back_title">触控板返回手势</string>
+    <string name="touchpad_back_summary">从手机左边缘或右边缘向中间滑动，即可在显示器上返回，和手机上一样。如果从边缘移动指针时受到干扰，请关闭。</string>
+    <string name="phone_keyboard_title">在手机上显示键盘</string>
+    <string name="phone_keyboard_summary">触控板开启时，点按显示器上的输入框会在手机触控板下方显示屏幕键盘。连接实体键盘时 Android 不会显示它。</string>
+    <string name="tiles_hint">快捷设置：在通知栏中编辑磁贴，添加“显示器”（电脑 ↔ 镜像）和“触控板”。</string>
+    <string name="section_diag">诊断</string>
+    <string name="diag_checking">正在检查系统中的模块…</string>
+    <string name="diag_ok">模块已在系统中运行（v%1$s），所有部分均已挂载。</string>
+    <string name="diag_reboot">系统仍在运行 v%1$s：请重启以启动 v%2$s。</string>
+    <string name="diag_missing">部分组件未挂载：%1$s。请生成报告并在 GitHub 提交 issue。</string>
+    <string name="diag_no_answer">系统没有响应：模块尚未加载。安装或更新后请重启（重启后约需一分钟）。</string>
+    <string name="diag_report_button">生成诊断报告</string>
+    <string name="diag_note">报告包含手机型号、Android 和 HyperOS 版本、这些设置、模块最近的日志，以及（连接显示器时）其上打开的应用和窗口标题。不会自动发送：由你决定复制或分享。</string>
+    <string name="diag_collecting">正在收集…</string>
+    <string name="diag_report_title">诊断报告</string>
+    <string name="diag_copy">复制</string>
+    <string name="diag_share">分享</string>
+    <string name="diag_issue">在 GitHub 上报告</string>
+    <string name="diag_copied">报告已复制</string>
+    <string name="diag_copied_issue">报告已复制：请粘贴到 GitHub issue 中</string>
+    <string name="tile_monitor">显示器</string>
+    <string name="tile_computer">电脑</string>
+    <string name="tile_mirroring">镜像</string>
+    <string name="tile_touchpad">触控板</string>
+    <string name="tile_on">开</string>
+    <string name="tile_off">关</string>
+    <string name="tile_no_monitor">无显示器</string>
+    <string name="tile_not_active">模块未启用</string>
+</resources>

@@ -139,6 +139,7 @@ update renamed something) — please include that line in bug reports.
 | Dock app (package name) | `cu.axel.smartdock` | e.g. `com.farmerbb.taskbar` for Taskbar |
 | Also open on the monitor | none | Extra apps (package names) launched on the monitor after the dock, on connect |
 | Manage the dock's accessibility service | on | On in desktop mode, off when unplugged and after boot |
+| Don't open HyperOS's own desktop on the monitor | off | Keeps the stock Xiaomi `SecondaryDisplayLauncher` off the monitor (and closes it if open). Try it if phone gestures break after changing the monitor's density or scale |
 | Turn off the phone screen in desktop mode | on | Power twice or Win+P brings it back |
 | Use the phone as a touchpad | off | The phone screen stays black instead of off and works as a touchpad for the monitor |
 | Touchpad sensitivity | 6 of 20 | Slider; higher = the pointer travels further. The system pointer speed applies on top |
@@ -305,7 +306,7 @@ history up to tag `v1.4.1`.
 
 Investigation and testing by Maurizio Laschi ([@the-marox](https://github.com/the-marox)) on a
 Xiaomi 15; module written with the help of Claude (Anthropic).
-Main switch idea from the fork by [@oldbkroll](https://github.com/oldbkroll/HyperDesktopUnlock).
+Main switch, stock-desktop block and first Simplified Chinese strings from the fork by [@oldbkroll](https://github.com/oldbkroll/HyperDesktopUnlock).
 Built on [LSPosed](https://github.com/LSPosed/LSPosed) and the classic Xposed API.
 
 ## Disclaimer

@@ -98,6 +98,7 @@ final class DesktopSession {
                     setKeepAwake(Prefs.keepAwake());
                     PhoneScreen.onSettingsChanged();   // touchpad acceso/spento mentre il telefono e' nero
                     applyDisplayConfig(ExternalDisplayGate.externalId);
+                    SecondaryHomeHooks.cleanupSoon(0);   // opzione appena accesa
                 }
             };
             ctx.registerReceiver(r, new IntentFilter(Prefs.ACTION_APPLY), Prefs.PERMISSION_APPLY,

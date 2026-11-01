@@ -51,6 +51,7 @@ public final class ExternalDisplayGate {
                         return;
                     }
                     DockAccessibility.onExternalAdded();
+                    SecondaryHomeHooks.cleanupSoon(2000);
                     PhoneScreen.onExternalAdded();
                     DesktopSession.onExternalAdded(id);
                 }
@@ -67,6 +68,7 @@ public final class ExternalDisplayGate {
                             present = false;
                             externalId = -1;
                             XLog.i("[gate] display esterno RIMOSSO");
+                            SecondaryHomeHooks.onExternalRemoved();
                             PhoneScreen.onExternalRemoved();
                             DockAccessibility.onExternalRemoved();
                             DesktopSession.onExternalRemoved();
