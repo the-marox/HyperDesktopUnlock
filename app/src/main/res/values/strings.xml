@@ -30,6 +30,8 @@
     <string name="extra_apps_hint">com.android.chrome, org.videolan.vlc</string>
     <string name="manage_a11y_title">Manage the dock\'s accessibility service</string>
     <string name="manage_a11y_summary">Turns it on when the desktop starts and off when you unplug, so the dock never shows up on the phone.</string>
+    <string name="block_stock_home_title">Don\'t open HyperOS\'s own desktop on the monitor</string>
+    <string name="block_stock_home_summary">Try this if phone gestures stop working after changing the monitor\'s density or scale. Stops the stock Xiaomi desktop (SecondaryDisplayLauncher) from starting on the monitor and closes it if it\'s already open; the dock and your apps are not affected. Without the dock the monitor shows only the wallpaper until you open an app.</string>
 
     <string name="section_phone">Phone</string>
     <string name="phone_off_title">Turn off the phone screen in desktop mode</string>

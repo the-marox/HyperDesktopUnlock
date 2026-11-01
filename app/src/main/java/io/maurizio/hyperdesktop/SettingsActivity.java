@@ -110,6 +110,8 @@ public class SettingsActivity extends Activity {
                   Prefs.K_EXTRA_APPS, "", getString(R.string.extra_apps_hint));
         toggle(R.string.manage_a11y_title, R.string.manage_a11y_summary,
                Prefs.K_MANAGE_A11Y, Prefs.D_MANAGE_A11Y, false);
+        toggle(R.string.block_stock_home_title, R.string.block_stock_home_summary,
+               Prefs.K_BLOCK_STOCK_HOME, Prefs.D_BLOCK_STOCK_HOME, true);
 
         section(R.string.section_phone);
         toggle(R.string.phone_off_title, R.string.phone_off_summary,

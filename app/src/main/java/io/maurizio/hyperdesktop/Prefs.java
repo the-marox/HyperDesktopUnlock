@@ -42,6 +42,7 @@ final class Prefs {
     /** Interruttore generale (ModuleState): spento = gli hook non intervengono. */
     static final String K_ENABLED        = "module_enabled";
     static final String K_LAUNCHER_PKG   = "launcher_pkg";
+    static final String K_BLOCK_STOCK_HOME = "block_stock_home";
     static final String K_AUTO_LAUNCH    = "auto_launch";
     static final String K_EXTRA_APPS     = "extra_apps";
     static final String K_MANAGE_A11Y    = "manage_accessibility";
@@ -61,6 +62,7 @@ final class Prefs {
 
     static final boolean D_ENABLED       = true;
     static final String  D_LAUNCHER_PKG  = "cu.axel.smartdock";
+    static final boolean D_BLOCK_STOCK_HOME = false;
     static final boolean D_AUTO_LAUNCH   = true;
     static final boolean D_MANAGE_A11Y   = true;
     static final boolean D_PHONE_OFF     = true;
@@ -142,6 +144,7 @@ final class Prefs {
 
     static String  launcherPkg()   { return str(K_LAUNCHER_PKG, D_LAUNCHER_PKG); }
     static boolean autoLaunch()    { return bool(K_AUTO_LAUNCH, D_AUTO_LAUNCH); }
+    static boolean blockStockHome() { return bool(K_BLOCK_STOCK_HOME, D_BLOCK_STOCK_HOME); }
     static String  extraApps()     { return str(K_EXTRA_APPS, ""); }
     static String  resolution()    { return str(K_RESOLUTION, ""); }
     static String  refreshRate()   { return str(K_REFRESH, ""); }
