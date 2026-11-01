@@ -134,6 +134,7 @@ update renamed something) — please include that line in bug reports.
 
 | Setting | Default | |
 |---|---|---|
+| Module enabled (main switch) | on | Off: the monitor goes back to mirroring and every hook lets HyperOS behave as stock, without a reboot (desktop mode is fully stock again after reconnecting the monitor or rebooting) |
 | Start the dock on the monitor | on | Launches the dock's desktop on the monitor when you choose Computer |
 | Dock app (package name) | `cu.axel.smartdock` | e.g. `com.farmerbb.taskbar` for Taskbar |
 | Also open on the monitor | none | Extra apps (package names) launched on the monitor after the dock, on connect |
@@ -205,6 +206,8 @@ Both need the phone unlocked.
 
 ## If something goes wrong
 
+- To get stock HyperOS back quickly, turn off **Module enabled** at the top of the
+  module's settings: no reboot and no need to disable it in LSPosed.
 - Open the module's settings → **Diagnostics**. The status line says whether the
   module is running in the system, whether a reboot is needed, and which parts
   did not attach. **Create diagnostic report** collects the phone model, Android
@@ -302,6 +305,7 @@ history up to tag `v1.4.1`.
 
 Investigation and testing by Maurizio Laschi ([@the-marox](https://github.com/the-marox)) on a
 Xiaomi 15; module written with the help of Claude (Anthropic).
+Main switch idea from the fork by [@oldbkroll](https://github.com/oldbkroll/HyperDesktopUnlock).
 Built on [LSPosed](https://github.com/LSPosed/LSPosed) and the classic Xposed API.
 
 ## Disclaimer

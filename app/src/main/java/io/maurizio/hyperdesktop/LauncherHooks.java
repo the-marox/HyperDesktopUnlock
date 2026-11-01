@@ -83,6 +83,7 @@ public final class LauncherHooks {
             try {
                 XposedBridge.hookMethod(m, new XC_MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
+                        if (!ModuleState.enabled()) return;
                         Boolean enableMirroring = null;
                         for (Object a : p.args) if (a instanceof Boolean) { enableMirroring = (Boolean) a; break; }
                         if (Boolean.FALSE.equals(enableMirroring)) onDesktopChosen();

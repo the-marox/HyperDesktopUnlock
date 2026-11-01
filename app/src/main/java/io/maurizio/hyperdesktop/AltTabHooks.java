@@ -84,6 +84,7 @@ public final class AltTabHooks {
             try {
                 XposedBridge.hookMethod(m, new XC_MethodHook() {
                     @Override protected void beforeHookedMethod(MethodHookParam p) {
+                        if (!ModuleState.enabled()) return;
                         KeyEvent ev = null;
                         for (Object a : p.args) if (a instanceof KeyEvent) { ev = (KeyEvent) a; break; }
                         if (ev != null && onKey(ev)) p.setResult(0);   // 0 = non passare all'utente

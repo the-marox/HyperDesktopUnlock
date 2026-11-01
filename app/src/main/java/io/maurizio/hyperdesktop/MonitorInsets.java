@@ -63,7 +63,7 @@ final class MonitorInsets {
                      * il metodo con parametri gia' modificati da noi (cambio di display, ecc.).
                      */
                     @Override protected void beforeHookedMethod(MethodHookParam p) {
-                        if (!enabled) return;
+                        if (!enabled || !ModuleState.enabled()) return;
                         try {
                             WindowManager.LayoutParams a = (WindowManager.LayoutParams) p.args[1];
                             if (!applies(p.args[0], a)) return;

@@ -4,6 +4,11 @@
     <string name="status_unavailable">⚠ LSPosed non ha fornito una cartella per le impostazioni. Riavvia e riapri questa schermata.</string>
     <string name="status_inactive">⚠ Il modulo non è attivo in LSPosed, quindi queste impostazioni non arrivano al sistema. Attivalo in LSPosed (ambito: Framework di sistema, Interfaccia di sistema, Impostazioni), riavvia e riapri questa schermata.</string>
 
+    <string name="master_title">Modulo attivo</string>
+    <string name="master_summary">Spento: il monitor torna in mirroring e il modulo smette di modificare HyperOS, senza riavvio. La modalità desktop torna del tutto originale solo dopo aver ricollegato il monitor o riavviato.</string>
+    <string name="master_off_note">⚠ Il modulo è spento: HyperOS si comporta come di serie. Riaccendilo qui sopra, poi ricollega il monitor e scegli Computer.</string>
+    <string name="diag_disabled">Modulo attivo nel sistema (v%1$s) ma spento dall\'interruttore generale.</string>
+    <string name="tile_disabled">Modulo spento</string>
     <string name="section_dock">Dock</string>
     <string name="auto_launch_title">Avvia il dock sul monitor</string>
     <string name="auto_launch_summary">Apre il desktop del dock sul monitor quando scegli Computer.</string>

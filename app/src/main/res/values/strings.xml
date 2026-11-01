@@ -15,6 +15,11 @@
     <string name="status_unavailable">⚠ LSPosed did not provide a place to store the settings. Reboot and open this screen again.</string>
     <string name="status_inactive">⚠ The module is not active in LSPosed, so these settings can\'t reach the system. Enable it in LSPosed (scope: System Framework, System UI, Settings), reboot, then open this screen again.</string>
 
+    <string name="master_title">Module enabled</string>
+    <string name="master_summary">Off: the monitor goes back to mirroring and the module stops changing HyperOS, without a reboot. Desktop mode itself fully returns to stock only after you reconnect the monitor or reboot.</string>
+    <string name="master_off_note">⚠ The module is switched off: HyperOS behaves as stock. Turn it back on above, then reconnect the monitor and choose Computer.</string>
+    <string name="diag_disabled">Module running in the system (v%1$s) but switched off by the main switch.</string>
+    <string name="tile_disabled">Module off</string>
     <string name="section_dock">Dock</string>
     <string name="auto_launch_title">Start the dock on the monitor</string>
     <string name="auto_launch_summary">Opens the dock\'s desktop on the monitor when you choose Computer.</string>

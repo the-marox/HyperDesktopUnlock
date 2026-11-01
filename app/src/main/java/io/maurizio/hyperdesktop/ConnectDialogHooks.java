@@ -44,6 +44,7 @@ public final class ConnectDialogHooks {
             try {
                 XposedBridge.hookMethod(m, new XC_MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
+                        if (!ModuleState.enabled()) return;
                         try {
                             if (p.args.length > 0 && p.args[0] instanceof Dialog) {
                                 reveal((Dialog) p.args[0], p.thisObject);
