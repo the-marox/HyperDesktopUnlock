@@ -150,6 +150,7 @@ update renamed something) — please include that line in bug reports.
 | Monitor resolution | not set | Picked from the sizes that fit the connected monitor, or Native. Lower = bigger UI, lighter on the GPU |
 | Monitor refresh rate (Hz) | not set | Picked from the rates the monitor reports, or Native |
 | Keep apps below the monitor's status bar (experimental) | off | For apps that draw under the monitor's status bar (e.g. a browser's tab strip). App windows on the monitor start below the bar; full-screen video is unaffected. Applies to apps opened afterwards |
+| Dim the monitor with the light sensor | off | Software dimming of the monitor driven by the phone's ambient light sensor (Android can't change a monitor's backlight). *Maximum dimming in the dark* (10–90%, default 60%) sets how dark it gets |
 | Desktop keyboard shortcuts | on | Alt+Tab and all the shortcuts below |
 | Alt+Tab preview bar | on | Hold Alt for a Windows-style bar of the open apps; off = switch instantly on each Tab |
 

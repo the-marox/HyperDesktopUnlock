@@ -65,6 +65,10 @@
     <string name="ime_warning_failed">无法更改：请在实体键盘设置中关闭“显示屏幕键盘”</string>
     <string name="fit_status_bar_title">让应用避开显示器状态栏（实验性）</string>
     <string name="fit_status_bar_summary">部分应用（例如浏览器的标签栏）会画到显示器状态栏下面，顶部被状态栏遮住。开启后显示器上的应用窗口从状态栏下方开始；全屏视频仍为全屏。对开启后打开的应用生效。</string>
+    <string name="auto_dim_title">根据环境光调暗显示器</string>
+    <string name="auto_dim_summary">Android 无法调节显示器的背光，因此模块用软件方式调暗画面：明亮环境 = 正常画面，暗环境 = 更暗。建议把显示器自身亮度调到中低，其余交给模块。手机的光线传感器不要被遮挡效果更好。</string>
+    <string name="dim_max_title">暗处最大调暗：%1$d%%</string>
+    <string name="dim_max_summary">在暗环境中显示器变暗的程度。松开滑块后生效。</string>
     <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — 在显示器上切换应用\nPrint Screen · Win+Shift+S — 显示器截图\nWin+Shift+方向键 — 在显示器和手机之间移动应用\nAlt+F4 — 关闭显示器上的应用\nWin+D — 显示 Dock 桌面\nWin+Backspace — 返回\nWin+1…9 — 聚焦第 N 个应用\nWin+P — 手机屏幕开/关</string>
 
     <string name="section_updates">更新</string>

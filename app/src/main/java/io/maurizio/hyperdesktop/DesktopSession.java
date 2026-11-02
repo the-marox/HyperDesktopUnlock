@@ -66,14 +66,17 @@ final class DesktopSession {
         });
         AltTabHooks.handler().postDelayed(new Runnable() {
             @Override public void run() {
-                if (ExternalDisplayGate.externalId == displayId) applyDisplayConfig(displayId);
+                if (ExternalDisplayGate.externalId == displayId) {
+                    applyDisplayConfig(displayId);
+                    MonitorDimmer.sync();   // dopo la configurazione: il velo prende la misura finale
+                }
             }
         }, APPLY_DELAY_MS);
     }
 
     static void onExternalRemoved() {
         AltTabHooks.handler().post(new Runnable() {
-            @Override public void run() { setKeepAwake(false); }
+            @Override public void run() { setKeepAwake(false); MonitorDimmer.stop(); }
         });
     }
 
@@ -91,14 +94,19 @@ final class DesktopSession {
                     MonitorInsets.refresh();
                     if (!ExternalDisplayGate.present) {   // valgono al prossimo collegamento
                         setKeepAwake(false);              // e un wakelock rimasto non deve restare
+                        MonitorDimmer.stop();
                         return;
                     }
-                    if (!ModuleState.refresh()) return;   // interruttore spento: non si tocca il monitor
+                    if (!ModuleState.refresh()) {         // interruttore spento: non si tocca il monitor
+                        MonitorDimmer.stop();             // ma un velo gia' acceso va tolto
+                        return;
+                    }
                     XLog.i("[session] impostazioni aggiornate dall'app");
                     setKeepAwake(Prefs.keepAwake());
                     PhoneScreen.onSettingsChanged();   // touchpad acceso/spento mentre il telefono e' nero
                     applyDisplayConfig(ExternalDisplayGate.externalId);
                     SecondaryHomeHooks.cleanupSoon(0);   // opzione appena accesa
+                    MonitorDimmer.sync();
                 }
             };
             ctx.registerReceiver(r, new IntentFilter(Prefs.ACTION_APPLY), Prefs.PERMISSION_APPLY,
@@ -126,6 +134,7 @@ final class DesktopSession {
             @Override public void run() {
                 registerApplyReceiver();
                 setKeepAwake(Prefs.keepAwake());   // il rinnovo era sul thread perso
+                MonitorDimmer.onHandlerLost();     // il velo e il sensore erano sul thread perso
             }
         });
     }

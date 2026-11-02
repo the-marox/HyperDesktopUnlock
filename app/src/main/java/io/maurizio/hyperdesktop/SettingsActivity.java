@@ -148,6 +148,10 @@ public class SettingsActivity extends Activity {
         }
         toggle(R.string.fit_status_bar_title, R.string.fit_status_bar_summary,
                Prefs.K_FIT_STATUS_BAR, Prefs.D_FIT_STATUS_BAR, true);
+        toggle(R.string.auto_dim_title, R.string.auto_dim_summary,
+               Prefs.K_AUTO_DIM, Prefs.D_AUTO_DIM, true);
+        sliderField(R.string.dim_max_title, R.string.dim_max_summary, Prefs.K_DIM_MAX,
+                Prefs.DIM_MIN, Prefs.DIM_MAX, Prefs.DIM_DEFAULT);
 
         section(R.string.section_keyboard);
         toggle(R.string.shortcuts_title, 0, Prefs.K_SHORTCUTS, Prefs.D_SHORTCUTS, false);
