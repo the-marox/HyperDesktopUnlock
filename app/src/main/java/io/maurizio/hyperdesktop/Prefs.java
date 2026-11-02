@@ -59,6 +59,8 @@ final class Prefs {
     static final String K_MODES_CACHE    = "modes_cache";   // solo l'app: modalita' viste sull'ultimo monitor
     static final String K_KEEP_AWAKE     = "keep_awake";
     static final String K_FIT_STATUS_BAR = "monitor_fit_status_bar";
+    static final String K_AUTO_DIM       = "monitor_auto_dim";
+    static final String K_DIM_MAX        = "monitor_dim_max";   // "10".."90" (%), assente = DIM_DEFAULT
 
     static final boolean D_ENABLED       = true;
     static final String  D_LAUNCHER_PKG  = "cu.axel.smartdock";
@@ -73,6 +75,7 @@ final class Prefs {
     static final boolean D_TOUCHPAD_BACK = true;
     static final boolean D_KEEP_AWAKE    = false;
     static final boolean D_FIT_STATUS_BAR = false;   // sperimentale: spento finche' non e' provato
+    static final boolean D_AUTO_DIM      = false;
 
     /**
      * Densita': chiave assente = non toccare; 0 = predefinita del monitor;
@@ -163,6 +166,12 @@ final class Prefs {
         return Math.max(SENS_MIN, Math.min(SENS_MAX, v));
     }
     static int     density()       { return integer(K_DENSITY, DENSITY_INVALID); }
+    static boolean autoDim()       { return bool(K_AUTO_DIM, D_AUTO_DIM); }
+    static final int DIM_MIN = 10, DIM_MAX = 90, DIM_DEFAULT = 60;
+    static int     dimMax() {
+        int v = integer(K_DIM_MAX, DIM_DEFAULT);
+        return Math.max(DIM_MIN, Math.min(DIM_MAX, v));
+    }
 
     /** Per la riga di diagnostica; null se questo processo non usa le impostazioni. */
     static synchronized String describeIfLoaded() {

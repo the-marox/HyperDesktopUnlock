@@ -115,6 +115,7 @@ final class ModuleControl {
                     sb.append("mirror=").append(mirrorSetting(c)).append('\n');
                     sb.append("phone=").append(PhoneScreen.state()).append('\n');
                     sb.append("touchpad=").append(Touchpad.active).append('\n');
+                    sb.append(MonitorDimmer.describe()).append('\n');
                     // appena scritto da qui: niente rilettura (una cache vecchia darebbe un falso "fallito")
                     sb.append("show_ime=").append(imeOff ? 0 : secureInt(c, KEY_SHOW_IME)).append('\n');
                     if (i.getBooleanExtra(Prefs.EXTRA_DIAG, false)) {
