@@ -37,7 +37,7 @@ final class MonitorDimmer {
     private static final int TYPE_SECURE_OVERLAY = 2015;
 
     /** Sopra questa luce niente oscuramento, sotto la minima oscuramento massimo (lux). */
-    private static final float LUX_BRIGHT = 400f;
+    private static final float LUX_BRIGHT = 200f;   // stanza ben illuminata: immagine piena
     private static final float LUX_DARK   = 3f;
     /** Media mobile sul log dei lux: niente sbalzi per un'ombra di passaggio. */
     private static final float SMOOTH = 0.15f;
@@ -189,7 +189,11 @@ final class MonitorDimmer {
         update(false);
     }
 
-    /** Oscuramento 0..1 dalla luce media: lineare sul logaritmo, tra LUX_DARK e LUX_BRIGHT. */
+    /**
+     * Oscuramento 0..1 dalla luce media, tra LUX_DARK e LUX_BRIGHT sul logaritmo dei lux.
+     * Curva k^1.5: con luce da interni (50-150 lux) si scurisce poco, il grosso
+     * dell'oscuramento arriva solo quando la stanza e' davvero buia.
+     */
     private static float target() {
         float max = Prefs.dimMax() / 100f;
         if (Float.isNaN(logLux)) return 0f;   // ancora nessuna lettura
@@ -197,7 +201,7 @@ final class MonitorDimmer {
         float hi = (float) Math.log10(LUX_BRIGHT + 1f);
         float k = (hi - logLux) / (hi - lo);   // 0 = luce forte, 1 = buio
         k = Math.max(0f, Math.min(1f, k));
-        return k * max;
+        return (float) Math.pow(k, 1.5) * max;
     }
 
     private static void update(boolean force) {
