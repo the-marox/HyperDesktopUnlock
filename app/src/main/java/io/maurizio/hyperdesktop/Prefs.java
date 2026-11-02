@@ -167,7 +167,7 @@ final class Prefs {
     }
     static int     density()       { return integer(K_DENSITY, DENSITY_INVALID); }
     static boolean autoDim()       { return bool(K_AUTO_DIM, D_AUTO_DIM); }
-    static final int DIM_MIN = 10, DIM_MAX = 90, DIM_DEFAULT = 60;
+    static final int DIM_MIN = 10, DIM_MAX = 90, DIM_DEFAULT = 50;
     static int     dimMax() {
         int v = integer(K_DIM_MAX, DIM_DEFAULT);
         return Math.max(DIM_MIN, Math.min(DIM_MAX, v));
