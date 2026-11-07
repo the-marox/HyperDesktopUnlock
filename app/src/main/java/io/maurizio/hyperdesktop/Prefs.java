@@ -61,6 +61,7 @@ final class Prefs {
     static final String K_FIT_STATUS_BAR = "monitor_fit_status_bar";
     static final String K_AUTO_DIM       = "monitor_auto_dim";
     static final String K_DIM_MAX        = "monitor_dim_max";   // "10".."90" (%), assente = DIM_DEFAULT
+    static final String K_MONITOR_NITS   = "monitor_max_nits";  // vuoto = sconosciuta (curva relativa)
 
     static final boolean D_ENABLED       = true;
     static final String  D_LAUNCHER_PKG  = "cu.axel.smartdock";
@@ -167,6 +168,12 @@ final class Prefs {
     }
     static int     density()       { return integer(K_DENSITY, DENSITY_INVALID); }
     static boolean autoDim()       { return bool(K_AUTO_DIM, D_AUTO_DIM); }
+    static final int NITS_MIN = 100, NITS_MAX = 2000;
+    /** Luminosita' massima dichiarata del monitor; 0 = non impostata o fuori intervallo. */
+    static int     monitorNits() {
+        int v = integer(K_MONITOR_NITS, 0);
+        return (v >= NITS_MIN && v <= NITS_MAX) ? v : 0;
+    }
     static final int DIM_MIN = 10, DIM_MAX = 90, DIM_DEFAULT = 50;
     static int     dimMax() {
         int v = integer(K_DIM_MAX, DIM_DEFAULT);

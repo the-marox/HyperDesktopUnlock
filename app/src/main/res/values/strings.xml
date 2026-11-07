@@ -76,6 +76,9 @@
     <string name="auto_dim_summary">Android can\'t change a monitor\'s backlight, so the module darkens the picture in software: bright room = normal picture, dark room = darker. Set the monitor\'s own brightness to a medium-low level and let the module do the rest. Works best if the phone\'s light sensor isn\'t covered.</string>
     <string name="dim_max_title">Maximum dimming in the dark: %1$d%%</string>
     <string name="dim_max_summary">How dark the monitor gets in a dark room. Applied when you let go of the slider.</string>
+    <string name="monitor_nits_title">Monitor maximum brightness (nits)</string>
+    <string name="monitor_nits_summary">Optional, from the monitor\'s spec sheet (SDR value, for example 350). With this set, dimming aims at a real brightness: about 50 nits in the dark, about 130 under normal indoor light, up to 400 in daylight, so a brighter monitor is dimmed more. "Maximum dimming in the dark" still caps it. Set the monitor\'s own brightness to 100%. Leave empty for the standard curve.</string>
+    <string name="monitor_nits_invalid">Enter a value between 100 and 2000, or leave empty</string>
     <string name="shortcuts_list">Alt+Tab · Alt+Shift+Tab — switch apps on the monitor\nPrint Screen · Win+Shift+S — screenshot of the monitor\nWin+Shift+Arrow — move an app between monitor and phone\nAlt+F4 — close the app on the monitor\nWin+D — show the dock\'s desktop\nWin+Backspace — Back\nWin+1…9 — focus the Nth app\nWin+P — phone screen on/off</string>
 
     <string name="section_updates">Updates</string>

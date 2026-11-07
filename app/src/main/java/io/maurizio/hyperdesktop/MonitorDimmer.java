@@ -102,7 +102,9 @@ final class MonitorDimmer {
     /** Per il report diagnostico. */
     static String describe() {
         if (veil == null) return "auto-dim: " + (Prefs.autoDim() ? "on, idle" : "off");
-        return "auto-dim: active, lux=" + Math.round(lastLux) + " dim=" + Math.round(applied * 100) + "%";
+        int n = Prefs.monitorNits();
+        return "auto-dim: active, lux=" + Math.round(lastLux) + " dim=" + Math.round(applied * 100) + "%"
+                + (n > 0 ? " target=" + Math.round(targetNits()) + "/" + n + "nits" : "");
     }
 
     // ------------------------------------------------------------------
@@ -197,11 +199,39 @@ final class MonitorDimmer {
     private static float target() {
         float max = Prefs.dimMax() / 100f;
         if (Float.isNaN(logLux)) return 0f;   // ancora nessuna lettura
+        int nits = Prefs.monitorNits();
+        if (nits > 0) return Math.min(max, nitsDim(nits));
         float lo = (float) Math.log10(LUX_DARK + 1f);
         float hi = (float) Math.log10(LUX_BRIGHT + 1f);
         float k = (hi - logLux) / (hi - lo);   // 0 = luce forte, 1 = buio
         k = Math.max(0f, Math.min(1f, k));
         return (float) Math.pow(k, 1.5) * max;
+    }
+
+    /** Luminanza voluta con la luce attuale: geometrica tra NITS_DARK e NITS_BRIGHT. */
+    private static final float NITS_DARK   = 50f;    // stanza buia
+    private static final float NITS_BRIGHT = 400f;   // stanza molto luminosa / luce del giorno
+    private static final float LUX_NITS_BRIGHT = 1000f;
+    /** Gamma con cui si fondono i pixel: un velo con alfa a lascia (1-a)^2.2 della luce. */
+    private static final double GAMMA = 2.2;
+
+    static float targetNits() {
+        if (Float.isNaN(logLux)) return NITS_BRIGHT;
+        float lo = (float) Math.log10(LUX_DARK + 1f);
+        float hi = (float) Math.log10(LUX_NITS_BRIGHT + 1f);
+        float k = Math.max(0f, Math.min(1f, (logLux - lo) / (hi - lo)));   // 0 = buio, 1 = luce forte
+        return (float) (NITS_DARK * Math.pow(NITS_BRIGHT / NITS_DARK, k));
+    }
+
+    /**
+     * Monitor con luminosita' massima nota: si oscura quanto basta perche' arrivi
+     * targetNits(). Un monitor da 600 nits si scurisce piu' di uno da 250; se il
+     * monitor non arriva al valore voluto, niente oscuramento.
+     */
+    private static float nitsDim(int monitorNits) {
+        float f = targetNits() / monitorNits;   // frazione di luce da lasciare passare
+        if (f >= 1f) return 0f;
+        return (float) (1.0 - Math.pow(f, 1.0 / GAMMA));
     }
 
     private static void update(boolean force) {
@@ -214,7 +244,9 @@ final class MonitorDimmer {
         long now = SystemClock.uptimeMillis();
         if (force || now - lastLog >= LOG_EVERY_MS) {
             lastLog = now;
-            XLog.i("[dim] lux " + Math.round(lastLux) + " -> oscuramento " + Math.round(t * 100) + "%");
+            int n = Prefs.monitorNits();
+            XLog.i("[dim] lux " + Math.round(lastLux) + " -> oscuramento " + Math.round(t * 100) + "%"
+                    + (n > 0 ? " (obiettivo " + Math.round(targetNits()) + " di " + n + " nits)" : ""));
         }
     }
 
