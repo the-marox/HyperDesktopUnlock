@@ -151,6 +151,7 @@ update renamed something) — please include that line in bug reports.
 | Monitor refresh rate (Hz) | not set | Picked from the rates the monitor reports, or Native |
 | Keep apps below the monitor's status bar (experimental) | off | For apps that draw under the monitor's status bar (e.g. a browser's tab strip). App windows on the monitor start below the bar; full-screen video is unaffected. Applies to apps opened afterwards |
 | Dim the monitor with the light sensor | off | Software dimming of the monitor driven by the phone's ambient light sensor (Android can't change a monitor's backlight). *Maximum dimming in the dark* (10–90%, default 50%) sets how dark it gets |
+| Monitor maximum brightness (nits) | empty | Optional SDR peak brightness from the monitor's spec sheet. When set, auto-dim targets a real brightness (≈50 nits in the dark, ≈130 indoors, up to 400 in daylight), so brighter monitors are dimmed more; still capped by *Maximum dimming in the dark*. Keep the monitor's own brightness at 100% |
 | Desktop keyboard shortcuts | on | Alt+Tab and all the shortcuts below |
 | Alt+Tab preview bar | on | Hold Alt for a Windows-style bar of the open apps; off = switch instantly on each Tab |
 

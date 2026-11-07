@@ -65,6 +65,9 @@
     <string name="auto_dim_summary">Android non può regolare la retroilluminazione del monitor, quindi il modulo scurisce l\'immagine via software: stanza luminosa = immagine normale, stanza buia = più scura. Tieni la luminosità del monitor medio-bassa e lascia al modulo il resto. Funziona meglio se il sensore di luce del telefono non è coperto.</string>
     <string name="dim_max_title">Oscuramento massimo al buio: %1$d%%</string>
     <string name="dim_max_summary">Quanto si scurisce il monitor in una stanza buia. Si applica quando rilasci il cursore.</string>
+    <string name="monitor_nits_title">Luminosità massima del monitor (nits)</string>
+    <string name="monitor_nits_summary">Facoltativo, dalla scheda tecnica del monitor (valore SDR, per esempio 350). Se lo imposti, l\'oscuramento punta a una luminosità reale: circa 50 nits al buio, circa 130 con la normale luce di casa, fino a 400 alla luce del giorno, quindi un monitor più luminoso viene scurito di più. Il limite resta "Oscuramento massimo al buio". Tieni la luminosità del monitor al 100%. Lascia vuoto per la curva standard.</string>
+    <string name="monitor_nits_invalid">Inserisci un valore tra 100 e 2000, oppure lascia vuoto</string>
     <string name="shortcuts_list">Alt+Tab · Alt+Maiusc+Tab — cambia app sul monitor\nStamp · Win+Maiusc+S — screenshot del monitor\nWin+Maiusc+freccia — sposta un\'app tra monitor e telefono\nAlt+F4 — chiudi l\'app sul monitor\nWin+D — mostra il desktop del dock\nWin+Backspace — Indietro\nWin+1…9 — metti a fuoco l\'ennesima app\nWin+P — schermo del telefono acceso/spento</string>
 
     <string name="section_updates">Aggiornamenti</string>

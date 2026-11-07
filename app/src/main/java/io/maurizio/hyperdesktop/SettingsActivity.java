@@ -152,6 +152,8 @@ public class SettingsActivity extends Activity {
                Prefs.K_AUTO_DIM, Prefs.D_AUTO_DIM, true);
         sliderField(R.string.dim_max_title, R.string.dim_max_summary, Prefs.K_DIM_MAX,
                 Prefs.DIM_MIN, Prefs.DIM_MAX, Prefs.DIM_DEFAULT);
+        applyField(R.string.monitor_nits_title, R.string.monitor_nits_summary, R.string.monitor_nits_invalid,
+                   Prefs.K_MONITOR_NITS, InputType.TYPE_CLASS_NUMBER, NORM_NITS);
 
         section(R.string.section_keyboard);
         toggle(R.string.shortcuts_title, 0, Prefs.K_SHORTCUTS, Prefs.D_SHORTCUTS, false);
@@ -434,6 +436,14 @@ public class SettingsActivity extends Activity {
             int v; try { v = Integer.parseInt(s); } catch (NumberFormatException e) { return null; }
             if (v == 0) return "0";
             return (v >= Prefs.DENSITY_MIN && v <= Prefs.DENSITY_MAX) ? String.valueOf(v) : null;
+        }
+    };
+
+    private static final Normalizer NORM_NITS = new Normalizer() {
+        @Override public String normalize(String s) {
+            if (s.isEmpty()) return "";
+            int v; try { v = Integer.parseInt(s); } catch (NumberFormatException e) { return null; }
+            return (v >= Prefs.NITS_MIN && v <= Prefs.NITS_MAX) ? String.valueOf(v) : null;
         }
     };
 
