@@ -66,7 +66,7 @@
     <string name="fit_status_bar_title">让应用避开显示器状态栏（实验性）</string>
     <string name="fit_status_bar_summary">部分应用（例如浏览器的标签栏）会画到显示器状态栏下面，顶部被状态栏遮住。开启后显示器上的应用窗口从状态栏下方开始；全屏视频仍为全屏。对开启后打开的应用生效。</string>
     <string name="auto_dim_title">根据环境光调暗显示器</string>
-    <string name="auto_dim_summary">Android 无法调节显示器的背光，因此模块用软件方式调暗画面：明亮环境 = 正常画面，暗环境 = 更暗。建议把显示器自身亮度调到中低，其余交给模块。手机的光线传感器不要被遮挡效果更好。</string>
+    <string name="auto_dim_summary">Android 无法调节显示器的背光，因此模块用软件方式调暗画面：明亮环境 = 正常画面，暗环境 = 更暗。建议把显示器自身亮度调到中低，其余交给模块。手机的光线传感器不要被遮挡效果更好。显示器播放 HDR 内容时会自动暂停。</string>
     <string name="dim_max_title">暗处最大调暗：%1$d%%</string>
     <string name="dim_max_summary">在暗环境中显示器变暗的程度。松开滑块后生效。</string>
     <string name="monitor_nits_title">显示器最大亮度（尼特）</string>

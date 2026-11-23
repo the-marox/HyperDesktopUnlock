@@ -28,6 +28,9 @@ import android.view.WindowManager;
  * non a fuoco, sopra tutto sul display esterno, con trasparenza che segue la luce.
  * Luce forte = finestra trasparente; buio = oscuramento massimo scelto nell'app.
  *
+ * Con l'HDR attivo sul monitor (vedi HdrWatcher) l'oscuramento si sospende: il velo
+ * sparisce e torna quando l'HDR si spegne.
+ *
  * Tutto gira sul thread di AltTabHooks (Looper), come SwitcherOverlay. Qualsiasi
  * errore spegne l'oscuramento: il monitor resta com'era, mai nero.
  */
@@ -45,6 +48,10 @@ final class MonitorDimmer {
     private static final float STEP = 0.02f;
     private static final long FADE_MS = 900;
     private static final long LOG_EVERY_MS = 60_000;
+    /** Controllo periodico dei segnali HDR senza callback (uscita forzata, rapporto HDR/SDR). */
+    private static final long HDR_POLL_MS = 4_000;
+    /** L'HDR deve restare spento per questo tempo prima di ridare l'oscuramento. */
+    private static final long HDR_OFF_DELAY_MS = 3_000;
 
     private static WindowManager wm;
     private static View veil;
@@ -56,6 +63,16 @@ final class MonitorDimmer {
     private static float lastLux = -1;
     private static float applied = 0f;
     private static long lastLog;
+    private static boolean hdr;
+    private static long hdrOffSince;
+
+    private static final Runnable HDR_POLL = new Runnable() {
+        @Override public void run() {
+            if (veil == null) return;
+            checkHdr();
+            AltTabHooks.handler().postDelayed(this, HDR_POLL_MS);
+        }
+    };
 
     // ------------------------------------------------------------------
     // ciclo di vita (chiamati da DesktopSession, sempre sul thread di AltTabHooks)
@@ -71,6 +88,13 @@ final class MonitorDimmer {
             if (veil != null && veilDisplay != id) stop();   // monitor cambiato
             if (veil == null && !addVeil(id)) return;
             if (listener == null) startSensor();
+            HdrWatcher.start(id, new HdrWatcher.Callback() {
+                @Override public void onHdrLayersChanged() { checkHdr(); }
+            });
+            AltTabHooks.handler().removeCallbacks(HDR_POLL);
+            AltTabHooks.handler().postDelayed(HDR_POLL, HDR_POLL_MS);
+            hdr = HdrWatcher.active(id);
+            hdrOffSince = 0;
             update(true);                                      // oscuramento massimo cambiato
         } catch (Throwable t) {
             XLog.e("[dim] avvio fallito, oscuramento spento", t);
@@ -80,6 +104,10 @@ final class MonitorDimmer {
 
     static void stop() {
         stopSensor();
+        try { AltTabHooks.handler().removeCallbacks(HDR_POLL); } catch (Throwable ignored) {}
+        HdrWatcher.stop();
+        hdr = false;
+        hdrOffSince = 0;
         try {
             if (veil != null && wm != null) wm.removeViewImmediate(veil);
         } catch (Throwable t) { XLog.e("[dim] removeView fallito", t); }
@@ -103,8 +131,38 @@ final class MonitorDimmer {
     static String describe() {
         if (veil == null) return "auto-dim: " + (Prefs.autoDim() ? "on, idle" : "off");
         int n = Prefs.monitorNits();
-        return "auto-dim: active, lux=" + Math.round(lastLux) + " dim=" + Math.round(applied * 100) + "%"
-                + (n > 0 ? " target=" + Math.round(targetNits()) + "/" + n + "nits" : "");
+        return "auto-dim: active" + (hdr ? " (paused: HDR)" : "") + ", lux=" + Math.round(lastLux) + " dim=" + Math.round(applied * 100) + "%"
+                + (n > 0 ? " target=" + Math.round(targetNits()) + "/" + n + "nits" : "")
+                + "\n" + HdrWatcher.describe();
+    }
+
+    /** HDR acceso/spento: si sospende subito, si riprende solo dopo HDR_OFF_DELAY_MS. */
+    private static void checkHdr() {
+        if (veil == null) return;
+        boolean now = HdrWatcher.active(veilDisplay);
+        if (now) {
+            hdrOffSince = 0;
+            if (!hdr) {
+                hdr = true;
+                XLog.i("[dim] HDR attivo sul monitor: oscuramento sospeso");
+                update(true);
+            }
+            return;
+        }
+        if (!hdr) return;
+        long t = SystemClock.uptimeMillis();
+        if (hdrOffSince == 0) {
+            hdrOffSince = t;
+            AltTabHooks.handler().postDelayed(new Runnable() {
+                @Override public void run() { checkHdr(); }
+            }, HDR_OFF_DELAY_MS + 50);
+            return;
+        }
+        if (t - hdrOffSince < HDR_OFF_DELAY_MS) return;
+        hdr = false;
+        hdrOffSince = 0;
+        XLog.i("[dim] HDR spento: oscuramento ripreso");
+        update(true);
     }
 
     // ------------------------------------------------------------------
@@ -197,6 +255,7 @@ final class MonitorDimmer {
      * dell'oscuramento arriva solo quando la stanza e' davvero buia.
      */
     private static float target() {
+        if (hdr) return 0f;                    // HDR sul monitor: niente velo
         float max = Prefs.dimMax() / 100f;
         if (Float.isNaN(logLux)) return 0f;   // ancora nessuna lettura
         int nits = Prefs.monitorNits();
@@ -239,13 +298,25 @@ final class MonitorDimmer {
         float t = target();
         if (!force && Math.abs(t - applied) < STEP && !(t == 0f && applied > 0f)) return;
         applied = t;
-        veil.animate().cancel();
-        veil.animate().alpha(t).setDuration(FADE_MS).start();
+        final View v = veil;
+        v.animate().cancel();
+        if (hdr) {
+            // Via del tutto (GONE nasconde la superficie della finestra): un livello in
+            // piu' sopra un video HDR, anche trasparente, puo' costringere SurfaceFlinger
+            // a comporre in GPU e far perdere l'HDR.
+            v.animate().alpha(0f).setDuration(FADE_MS / 3).withEndAction(new Runnable() {
+                @Override public void run() { if (hdr && veil == v) v.setVisibility(View.GONE); }
+            }).start();
+        } else {
+            if (v.getVisibility() != View.VISIBLE) v.setVisibility(View.VISIBLE);
+            v.animate().alpha(t).setDuration(FADE_MS).start();
+        }
         long now = SystemClock.uptimeMillis();
         if (force || now - lastLog >= LOG_EVERY_MS) {
             lastLog = now;
             int n = Prefs.monitorNits();
             XLog.i("[dim] lux " + Math.round(lastLux) + " -> oscuramento " + Math.round(t * 100) + "%"
+                    + (hdr ? " (HDR)" : "")
                     + (n > 0 ? " (obiettivo " + Math.round(targetNits()) + " di " + n + " nits)" : ""));
         }
     }

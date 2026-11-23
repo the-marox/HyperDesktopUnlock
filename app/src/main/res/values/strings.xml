@@ -73,7 +73,7 @@
     <string name="fit_status_bar_title">Keep apps below the monitor\'s status bar (experimental)</string>
     <string name="fit_status_bar_summary">Some apps (a browser\'s tab strip, for example) draw under the status bar on the monitor, and the bar covers their top. On = app windows on the monitor start below the bar; full-screen videos stay full screen. Applies to apps opened after you turn it on.</string>
     <string name="auto_dim_title">Dim the monitor with the light sensor</string>
-    <string name="auto_dim_summary">Android can\'t change a monitor\'s backlight, so the module darkens the picture in software: bright room = normal picture, dark room = darker. Set the monitor\'s own brightness to a medium-low level and let the module do the rest. Works best if the phone\'s light sensor isn\'t covered.</string>
+    <string name="auto_dim_summary">Android can\'t change a monitor\'s backlight, so the module darkens the picture in software: bright room = normal picture, dark room = darker. Set the monitor\'s own brightness to a medium-low level and let the module do the rest. Works best if the phone\'s light sensor isn\'t covered. Paused while HDR content is on the monitor.</string>
     <string name="dim_max_title">Maximum dimming in the dark: %1$d%%</string>
     <string name="dim_max_summary">How dark the monitor gets in a dark room. Applied when you let go of the slider.</string>
     <string name="monitor_nits_title">Monitor maximum brightness (nits)</string>

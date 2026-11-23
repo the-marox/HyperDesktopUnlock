@@ -62,7 +62,7 @@
     <string name="fit_status_bar_title">App sotto la barra di stato del monitor (sperimentale)</string>
     <string name="fit_status_bar_summary">Alcune app (per esempio la barra delle schede di un browser) disegnano sotto la barra di stato del monitor, che ne copre la parte alta. Attivo = le finestre delle app sul monitor iniziano sotto la barra; i video a schermo intero restano a schermo intero. Vale per le app aperte dopo averlo attivato.</string>
     <string name="auto_dim_title">Oscura il monitor in base alla luce</string>
-    <string name="auto_dim_summary">Android non può regolare la retroilluminazione del monitor, quindi il modulo scurisce l\'immagine via software: stanza luminosa = immagine normale, stanza buia = più scura. Tieni la luminosità del monitor medio-bassa e lascia al modulo il resto. Funziona meglio se il sensore di luce del telefono non è coperto.</string>
+    <string name="auto_dim_summary">Android non può regolare la retroilluminazione del monitor, quindi il modulo scurisce l\'immagine via software: stanza luminosa = immagine normale, stanza buia = più scura. Tieni la luminosità del monitor medio-bassa e lascia al modulo il resto. Funziona meglio se il sensore di luce del telefono non è coperto. Si sospende quando sul monitor c\'è un contenuto HDR.</string>
     <string name="dim_max_title">Oscuramento massimo al buio: %1$d%%</string>
     <string name="dim_max_summary">Quanto si scurisce il monitor in una stanza buia. Si applica quando rilasci il cursore.</string>
     <string name="monitor_nits_title">Luminosità massima del monitor (nits)</string>

@@ -1,0 +1,10 @@
+// Stub delle API nascoste di Android usate dal modulo: servono solo a compilare
+// (compileOnly in :app), a runtime si usano le classi vere del framework.
+plugins {
+    id 'java-library'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
