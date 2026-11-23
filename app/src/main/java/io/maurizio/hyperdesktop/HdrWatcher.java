@@ -108,8 +108,8 @@ final class HdrWatcher {
         Display d = dm != null ? dm.getDisplay(displayId) : null;
         if (d == null) return null;
         Object addr = XposedHelpers.callMethod(d, "getAddress");   // @hide
-        if (!(addr instanceof android.view.DisplayAddress.Physical)) return null;
-        long physId = ((android.view.DisplayAddress.Physical) addr).getPhysicalDisplayId();
+        if (addr == null || !addr.getClass().getName().endsWith("DisplayAddress$Physical")) return null;
+        long physId = (Long) XposedHelpers.callMethod(addr, "getPhysicalDisplayId");
         // Android 14+: DisplayControl (services.jar); prima: SurfaceControl.
         try {
             Class<?> dc = XposedHelpers.findClass("com.android.server.display.DisplayControl", AltTabHooks.cl);
