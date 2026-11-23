@@ -101,26 +101,57 @@ final class HdrWatcher {
     }
 
     // ------------------------------------------------------------------
-    /** Token SurfaceFlinger del display fisico dietro il display logico. */
+    /**
+     * Token SurfaceFlinger del display fisico dietro il display logico. Tre strade,
+     * ognuna con il motivo del fallimento nel log:
+     *  1. DisplayManagerService: display logico -> DisplayDevice -> getDisplayTokenLocked();
+     *  2. id fisico (DisplayInfo.address) -> DisplayControl.getPhysicalDisplayToken();
+     *  3. come 2, con SurfaceControl.getPhysicalDisplayToken() (Android < 14).
+     */
     private static IBinder displayToken(int displayId) {
-        Context sys = AltTabHooks.systemContext();
-        DisplayManager dm = sys != null ? sys.getSystemService(DisplayManager.class) : null;
-        Display d = dm != null ? dm.getDisplay(displayId) : null;
-        if (d == null) return null;
-        Object addr = XposedHelpers.callMethod(d, "getAddress");   // @hide
-        if (addr == null || !addr.getClass().getName().endsWith("DisplayAddress$Physical")) return null;
-        long physId = (Long) XposedHelpers.callMethod(addr, "getPhysicalDisplayId");
-        // Android 14+: DisplayControl (services.jar); prima: SurfaceControl.
+        StringBuilder why = new StringBuilder();
+        Object dmi = null;
         try {
-            Class<?> dc = XposedHelpers.findClass("com.android.server.display.DisplayControl", AltTabHooks.cl);
-            Object t = XposedHelpers.callStaticMethod(dc, "getPhysicalDisplayToken", physId);
-            if (t instanceof IBinder) return (IBinder) t;
-        } catch (Throwable ignored) {}
+            Class<?> ls = XposedHelpers.findClass("com.android.server.LocalServices", AltTabHooks.cl);
+            Class<?> c = XposedHelpers.findClass("android.hardware.display.DisplayManagerInternal", AltTabHooks.cl);
+            dmi = XposedHelpers.callStaticMethod(ls, "getService", c);
+        } catch (Throwable e) { why.append(" dmi:").append(e); }
+
+        // 1. dal DisplayManagerService (LocalService e' una classe interna: this$0)
         try {
-            Object t = XposedHelpers.callStaticMethod(
-                android.view.SurfaceControl.class, "getPhysicalDisplayToken", physId);
-            if (t instanceof IBinder) return (IBinder) t;
-        } catch (Throwable ignored) {}
+            Object dms = XposedHelpers.getObjectField(dmi, "this$0");
+            Object mapper = XposedHelpers.getObjectField(dms, "mLogicalDisplayMapper");
+            Object logical = XposedHelpers.callMethod(mapper, "getDisplayLocked", displayId);
+            Object device = XposedHelpers.callMethod(logical, "getPrimaryDisplayDeviceLocked");
+            Object t = XposedHelpers.callMethod(device, "getDisplayTokenLocked");
+            if (t instanceof IBinder) { XLog.i("[hdr] token dal DisplayManagerService"); return (IBinder) t; }
+            why.append(" dms:token nullo");
+        } catch (Throwable e) { why.append(" dms:").append(e); }
+
+        // 2-3. dall'id fisico
+        Long physId = null;
+        try {
+            Object info = XposedHelpers.callMethod(dmi, "getDisplayInfo", displayId);
+            Object addr = XposedHelpers.getObjectField(info, "address");
+            if (addr != null) physId = (Long) XposedHelpers.callMethod(addr, "getPhysicalDisplayId");
+            else why.append(" address nullo");
+        } catch (Throwable e) { why.append(" addr:").append(e); }
+        if (physId != null) {
+            try {
+                Class<?> dc = XposedHelpers.findClass("com.android.server.display.DisplayControl", AltTabHooks.cl);
+                Object t = XposedHelpers.callStaticMethod(dc, "getPhysicalDisplayToken", (long) physId);
+                if (t instanceof IBinder) { XLog.i("[hdr] token da DisplayControl"); return (IBinder) t; }
+                why.append(" DisplayControl:nullo");
+            } catch (Throwable e) { why.append(" DisplayControl:").append(e); }
+            try {
+                Object t = XposedHelpers.callStaticMethod(
+                    android.view.SurfaceControl.class, "getPhysicalDisplayToken", (long) physId);
+                if (t instanceof IBinder) { XLog.i("[hdr] token da SurfaceControl"); return (IBinder) t; }
+                why.append(" SurfaceControl:nullo");
+            } catch (Throwable e) { why.append(" SurfaceControl:").append(e); }
+        }
+        String w = why.toString();
+        XLog.i("[hdr] token non trovato:" + (w.length() > 600 ? w.substring(0, 600) : w));
         return null;
     }
 
