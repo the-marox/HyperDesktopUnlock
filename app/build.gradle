@@ -18,8 +18,8 @@ android {
         applicationId 'io.github.the_marox.hyperdesktop'
         minSdk 31
         targetSdk 35
-        versionCode 243
-        versionName '1.12.13'
+        versionCode 244
+        versionName '1.12.14'
     }
 
     signingConfigs {
@@ -55,6 +55,8 @@ android {
 dependencies {
     // API Xposed: solo in compilazione, fornita a runtime da LSPosed.
     compileOnly 'de.robv.android.xposed:api:82'
+    // Stub delle API nascoste (solo compilazione).
+    compileOnly project(':hiddenapi')
 }
 
 // Una build di release senza la chiave di firma si ferma subito con un messaggio chiaro,
